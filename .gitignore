@@ -1,0 +1,9 @@
+# Ignore Backend Code (Never Commit)
+Code.gs
+Promt.md
+
+# Ignore Frontend Example (For Reference Only)
+Example code.md
+
+# Ignore node_modules if you use them
+node_modules/
