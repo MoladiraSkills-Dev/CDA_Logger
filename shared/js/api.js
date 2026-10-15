@@ -87,58 +87,57 @@ function normalizeArgs(method, callArgs) {
 /**
  * google.script.run Shim: Allows seamless `.withSuccessHandler().withFailureHandler()[method](...args)` execution
  */
-class ScriptRunProxyBuilder {
-  constructor() {
-    this._success = null;
-    this._failure = null;
-  }
+function createScriptRunProxy() {
+  let successHandler = null;
+  let failureHandler = null;
 
-  withSuccessHandler(fn) {
-    this._success = fn;
-    return this;
-  }
+  const targetObj = {};
 
-  withFailureHandler(fn) {
-    this._failure = fn;
-    return this;
-  }
-
-  async _execute(method, rawArgs) {
-    try {
-      const args = normalizeArgs(method, rawArgs);
-      const res = await callApi(method, args);
-      if (typeof this._success === "function") {
-        this._success(res);
+  const proxy = new Proxy(targetObj, {
+    get(target, prop) {
+      if (prop === "withSuccessHandler") {
+        return function(fn) {
+          successHandler = fn;
+          return proxy; // Must return the Proxy to allow chaining in any order
+        };
       }
-      return res;
-    } catch (err) {
-      if (typeof this._failure === "function") {
-        this._failure(err);
-      } else {
-        console.error(`Unhandled API failure in ${method}:`, err);
+      if (prop === "withFailureHandler") {
+        return function(fn) {
+          failureHandler = fn;
+          return proxy; // Must return the Proxy to allow chaining in any order
+        };
       }
+
+      // Any backend method call: loginUser, registerUser, processActivityLog, etc.
+      return async function(...rawArgs) {
+        try {
+          const args = normalizeArgs(prop, rawArgs);
+          const res = await callApi(prop, args);
+          if (typeof successHandler === "function") {
+            successHandler(res);
+          }
+          return res;
+        } catch (err) {
+          showLoader(false);
+          if (typeof failureHandler === "function") {
+            failureHandler(err);
+          } else {
+            console.error(`Unhandled API failure in ${String(prop)}:`, err);
+            alert(`API Error (${String(prop)}): ${err.message || err}`);
+          }
+        }
+      };
     }
-  }
+  });
+
+  return proxy;
 }
 
-const scriptRunProxyHandler = {
-  get(target, prop) {
-    if (prop === "withSuccessHandler") {
-      return (fn) => target.withSuccessHandler(fn);
-    }
-    if (prop === "withFailureHandler") {
-      return (fn) => target.withFailureHandler(fn);
-    }
-    return (...args) => target._execute(prop, args);
-  }
-};
-
 window.google = window.google || {};
-Object.defineProperty(window.google, "script", {
+window.google.script = window.google.script || {};
+Object.defineProperty(window.google.script, "run", {
   get() {
-    return {
-      run: new Proxy(new ScriptRunProxyBuilder(), scriptRunProxyHandler)
-    };
+    return createScriptRunProxy();
   },
   configurable: true
 });

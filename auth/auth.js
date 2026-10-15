@@ -57,7 +57,8 @@ function handleLoginSubmit(e) {
   google.script.run
     .withFailureHandler(function(err) {
       showLoader(false);
-      showAlertUI(alertBox, "Connection Error: " + err.message, true);
+      const msg = err && err.message ? err.message : String(err || "Unable to reach server");
+      showAlertUI(alertBox, "Connection Error: " + msg, true);
     })
     .withSuccessHandler(function(res) {
       showLoader(false);
@@ -97,7 +98,8 @@ function handleRegisterSubmit(e) {
   google.script.run
     .withFailureHandler(function(err) {
       showLoader(false);
-      showAlertUI(alertBox, "Registration Error: " + err.message, true);
+      const msg = err && err.message ? err.message : String(err || "Unable to reach server");
+      showAlertUI(alertBox, "Registration Error: " + msg, true);
     })
     .withSuccessHandler(function(res) {
       showLoader(false);
