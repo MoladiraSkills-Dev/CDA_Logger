@@ -1,0 +1,196 @@
+/* ==========================================================================
+   CDA SOLUTIONS - EMPLOYEE PORTAL STYLES (employee.css)
+   ========================================================================== */
+
+.employee-card {
+  background: var(--cda-white);
+  border-radius: var(--radius-xl);
+  border: 1px solid var(--cda-slate-200);
+  box-shadow: 0 16px 30px -10px rgba(10, 131, 252, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.04);
+  padding: 2rem 1.75rem;
+  position: relative;
+  overflow: hidden;
+}
+
+.employee-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 5px;
+  background: linear-gradient(90deg, var(--cda-blue) 0%, var(--cda-teal) 100%);
+}
+
+.employee-profile-header {
+  text-align: center;
+  padding-bottom: 1.5rem;
+  margin-bottom: 1.5rem;
+  border-bottom: 1px solid var(--cda-slate-200);
+}
+
+.employee-avatar-circle {
+  width: 64px;
+  height: 64px;
+  margin: 0 auto 0.85rem;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--cda-blue-light) 0%, var(--cda-teal-light) 100%);
+  border: 2px solid var(--cda-teal);
+  color: var(--cda-blue-dark);
+  font-size: 1.5rem;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 12px rgba(10, 228, 168, 0.25);
+}
+
+.live-clock-card {
+  background: linear-gradient(135deg, var(--cda-navy) 0%, #152840 100%);
+  color: var(--cda-white);
+  border-radius: var(--radius-lg);
+  padding: 1.25rem;
+  text-align: center;
+  margin-bottom: 1.75rem;
+  box-shadow: var(--shadow-md);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.live-time-value {
+  font-family: var(--cda-font-mono);
+  font-size: 2.25rem;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  color: var(--cda-teal);
+  line-height: 1.1;
+  text-shadow: 0 0 15px rgba(10, 228, 168, 0.4);
+}
+
+.live-date-label {
+  font-size: 0.825rem;
+  color: var(--cda-slate-300);
+  font-weight: 500;
+  margin-top: 0.35rem;
+  letter-spacing: 0.02em;
+}
+
+.clock-actions-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1.25rem;
+  margin-bottom: 1.5rem;
+}
+
+.clock-action-btn {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1.25rem 1.5rem;
+  border-radius: var(--radius-lg);
+  border: none;
+  cursor: pointer;
+  color: var(--cda-white);
+  font-family: var(--cda-font);
+  box-shadow: var(--shadow-md);
+  transition: var(--transition);
+  text-align: left;
+}
+
+.clock-action-btn:hover {
+  transform: translateY(-2px);
+}
+
+.clock-action-btn:active {
+  transform: scale(0.97);
+}
+
+.clock-in-btn {
+  background: linear-gradient(135deg, #09bd8c 0%, #059669 100%);
+  box-shadow: 0 6px 18px rgba(9, 189, 140, 0.35);
+}
+
+.clock-in-btn:hover {
+  background: linear-gradient(135deg, #0ae4a8 0%, #059669 100%);
+  box-shadow: 0 8px 24px rgba(10, 228, 168, 0.45);
+}
+
+.clock-out-btn {
+  background: linear-gradient(135deg, #f97316 0%, #ea580c 100%);
+  box-shadow: 0 6px 18px rgba(249, 115, 22, 0.35);
+}
+
+.clock-out-btn:hover {
+  background: linear-gradient(135deg, #fb923c 0%, #c2410c 100%);
+  box-shadow: 0 8px 24px rgba(249, 115, 22, 0.45);
+}
+
+.action-btn-content {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.action-icon {
+  font-size: 2rem;
+  line-height: 1;
+}
+
+.action-label-title {
+  font-size: 1.15rem;
+  font-weight: 800;
+  display: block;
+  letter-spacing: -0.01em;
+}
+
+.action-label-sub {
+  font-size: 0.75rem;
+  opacity: 0.85;
+  display: block;
+}
+
+.action-arrow {
+  font-size: 1.35rem;
+  font-weight: 900;
+  transition: transform 0.2s ease;
+}
+
+.clock-action-btn:hover .action-arrow {
+  transform: translateX(4px);
+}
+
+.geo-info-box {
+  background-color: var(--cda-slate-50);
+  border: 1px dashed var(--cda-slate-300);
+  border-radius: var(--radius-md);
+  padding: 0.85rem 1rem;
+  font-size: 0.775rem;
+  color: var(--cda-slate-600);
+  text-align: center;
+  margin-bottom: 1.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+.leave-request-btn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.65rem;
+  padding: 0.875rem 1.25rem;
+  background-color: var(--cda-blue-light);
+  color: var(--cda-blue-dark);
+  border: 1px solid #bae6fd;
+  border-radius: var(--radius-md);
+  font-weight: 700;
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: var(--transition);
+}
+
+.leave-request-btn:hover {
+  background-color: #dbeafe;
+  border-color: var(--cda-blue);
+}

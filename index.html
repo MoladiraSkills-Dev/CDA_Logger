@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="CDA Solutions Attendance & Geolocation Logger - Secure corporate employee check-in, shift management, and leave system.">
+  <meta name="keywords" content="CDA Solutions, Attendance Logger, Direct Marketing, Work Tracking, Shift Verification">
+  <title>CDA Solutions - Attendance &amp; Shift Logger</title>
+  <link rel="icon" href="https://www.cdasolutions.co.za/fav.png" type="image/x-icon">
+  <link rel="stylesheet" href="shared/css/base.css">
+  <style>
+    /* Specific auth styling enhancements */
+    .auth-card {
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(226, 232, 240, 0.9);
+      border-radius: var(--radius-xl);
+      padding: 2.25rem 2rem;
+      box-shadow: 0 20px 35px -10px rgba(10, 131, 252, 0.12), 0 10px 20px -5px rgba(0, 0, 0, 0.04);
+      position: relative;
+    }
+
+    .auth-hero {
+      text-align: center;
+      margin-bottom: 2rem;
+    }
+
+    .auth-logo-badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 68px;
+      height: 68px;
+      background: linear-gradient(135deg, var(--cda-blue) 0%, var(--cda-teal) 100%);
+      color: var(--cda-navy);
+      font-weight: 900;
+      font-size: 1.85rem;
+      border-radius: var(--radius-xl);
+      box-shadow: 0 8px 24px rgba(10, 131, 252, 0.35);
+      margin-bottom: 1rem;
+      letter-spacing: -0.05em;
+    }
+
+    .auth-footer-links {
+      margin-top: 1.75rem;
+      padding-top: 1.25rem;
+      border-top: 1px solid var(--cda-slate-200);
+      text-align: center;
+      font-size: 0.85rem;
+      color: var(--cda-slate-500);
+    }
+
+    .company-stamp {
+      text-align: center;
+      margin-top: 2rem;
+      font-size: 0.75rem;
+      color: var(--cda-slate-500);
+    }
+  </style>
+</head>
+<body class="pattern-bg">
+
+  <!-- GLOBAL LOADING SPINNER -->
+  <div id="globalSpinner" class="spinner-overlay hidden">
+    <div class="spinner"></div>
+    <div id="spinnerMessage" class="spinner-message">Authenticating credentials...</div>
+  </div>
+
+  <main class="auth-container">
+    <div class="auth-card">
+      
+      <!-- HERO & BRANDING -->
+      <header class="auth-hero">
+        <div class="auth-logo-badge" aria-hidden="true">CDA</div>
+        <h1 class="brand-main-title" id="authTitle" style="color: var(--cda-navy); font-size: 1.65rem;">
+          Sign In to <span style="color: var(--cda-blue);">CDA Logger</span>
+        </h1>
+        <p class="text-muted" id="authSubtitle" style="font-size: 0.85rem; margin-top: 0.35rem;">
+          Enter your corporate credentials to log attendance.
+        </p>
+      </header>
+
+      <!-- ALERT MESSAGE BOX -->
+      <div id="authAlert" class="alert hidden" role="alert"></div>
+
+      <!-- SIGN IN FORM -->
+      <form id="loginForm" onsubmit="handleLoginSubmit(event)" novalidate>
+        <div class="form-group">
+          <label class="form-label" for="loginEmail">Work Email</label>
+          <input 
+            type="email" 
+            id="loginEmail" 
+            name="email" 
+            class="form-control" 
+            placeholder="e.g. employee@cdasolutions.co.za" 
+            autocomplete="email" 
+            required
+          >
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="loginPassword">Password</label>
+          <input 
+            type="password" 
+            id="loginPassword" 
+            name="password" 
+            class="form-control" 
+            placeholder="••••••••••••" 
+            autocomplete="current-password" 
+            required
+          >
+        </div>
+
+        <button type="submit" id="btnLoginSubmit" class="btn btn-primary btn-block btn-lg" style="margin-top: 1.5rem;">
+          <span>Secure Sign In</span>
+          <span aria-hidden="true">➔</span>
+        </button>
+
+        <div class="auth-footer-links">
+          <span>New staff member?</span>
+          <a href="javascript:void(0)" onclick="toggleAuthMode(false)" style="font-weight: 700; margin-left: 0.25rem;">
+            Create an access profile
+          </a>
+        </div>
+      </form>
+
+      <!-- REGISTRATION FORM -->
+      <form id="registerForm" class="hidden" onsubmit="handleRegisterSubmit(event)" novalidate>
+        <div class="form-row form-row-2">
+          <div class="form-group">
+            <label class="form-label" for="regFirst">First Name</label>
+            <input 
+              type="text" 
+              id="regFirst" 
+              name="firstName" 
+              class="form-control" 
+              placeholder="First name" 
+              required
+            >
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="regLast">Last Name</label>
+            <input 
+              type="text" 
+              id="regLast" 
+              name="lastName" 
+              class="form-control" 
+              placeholder="Last name" 
+              required
+            >
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="regEmail">Work Email</label>
+          <input 
+            type="email" 
+            id="regEmail" 
+            name="email" 
+            class="form-control" 
+            placeholder="name@cdasolutions.co.za" 
+            autocomplete="email" 
+            required
+          >
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="regPassword">Create Password</label>
+          <input 
+            type="password" 
+            id="regPassword" 
+            name="password" 
+            class="form-control" 
+            placeholder="Minimum 8 characters" 
+            autocomplete="new-password" 
+            required
+          >
+        </div>
+
+        <button type="submit" id="btnRegisterSubmit" class="btn btn-secondary btn-block btn-lg" style="margin-top: 1.5rem;">
+          <span>Complete Registration</span>
+          <span aria-hidden="true">➔</span>
+        </button>
+
+        <div class="auth-footer-links">
+          <span>Already registered?</span>
+          <a href="javascript:void(0)" onclick="toggleAuthMode(true)" style="font-weight: 700; margin-left: 0.25rem;">
+            Sign in instead
+          </a>
+        </div>
+      </form>
+
+    </div>
+
+    <!-- CORPORATE FOOTER -->
+    <footer class="company-stamp">
+      <p>&copy; CDA Solutions (Pty) Ltd &bull; 288 Kent Avenue, Ferndale, Randburg</p>
+      <p style="margin-top: 0.25rem;">Direct Marketing &bull; Financial Services Solutions</p>
+    </footer>
+  </main>
+
+  <!-- SCRIPTS -->
+  <script src="shared/js/api.js"></script>
+  <script src="auth/auth.js"></script>
+</body>
+</html>

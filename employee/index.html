@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="CDA Solutions Employee Attendance Portal - Record daily clock-in and clock-out with reverse geocoding verification and request leave.">
+  <title>CDA Solutions - Staff Attendance Portal</title>
+  <link rel="icon" href="https://www.cdasolutions.co.za/fav.png" type="image/x-icon">
+  <link rel="stylesheet" href="../shared/css/base.css">
+  <link rel="stylesheet" href="employee.css">
+</head>
+<body class="pattern-bg">
+
+  <!-- GLOBAL LOADING SPINNER -->
+  <div id="globalSpinner" class="spinner-overlay hidden">
+    <div class="spinner"></div>
+    <div id="spinnerMessage" class="spinner-message">Communicating with CDA Solutions API...</div>
+  </div>
+
+  <!-- TOP BRAND HEADER -->
+  <header class="brand-header">
+    <div class="brand-nav container">
+      <div class="brand-identity">
+        <div class="brand-logo-mark" aria-hidden="true">CDA</div>
+        <div class="brand-title-wrap">
+          <span class="brand-main-title">CDA <span>SOLUTIONS</span></span>
+          <span class="brand-sub-title">Employee Portal</span>
+        </div>
+      </div>
+      <div class="brand-nav-actions">
+        <span class="badge badge-teal badge-pulse">Session Active</span>
+        <button onclick="handleEmployeeLogout()" class="btn btn-outline btn-sm" style="color: #ffffff; border-color: rgba(255,255,255,0.25);">
+          Sign Out
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- MAIN EMPLOYEE CONTAINER -->
+  <main class="employee-container">
+    <article class="employee-card">
+      
+      <!-- PROFILE & GREETING -->
+      <section class="employee-profile-header">
+        <div id="employeeAvatar" class="employee-avatar-circle">CD</div>
+        <h1 id="employeeGreeting" style="font-size: 1.5rem; color: var(--cda-navy); margin-bottom: 0.25rem;">
+          Employee Attendance
+        </h1>
+        <p id="employeeEmail" class="text-muted" style="font-size: 0.85rem; font-family: var(--cda-font-mono);">
+          employee@cdasolutions.co.za
+        </p>
+      </section>
+
+      <!-- LIVE WORK CLOCK -->
+      <section class="live-clock-card" aria-label="Real-time workspace clock">
+        <div class="live-time-value" id="liveTime">00:00:00</div>
+        <div class="live-date-label" id="liveDate">Loading local calendar...</div>
+      </section>
+
+      <!-- FEEDBACK NOTIFICATION BOX -->
+      <div id="employeeAlert" class="alert hidden" role="alert"></div>
+
+      <!-- ATTENDANCE ACTIONS -->
+      <section class="clock-actions-grid" aria-label="Shift Clock Actions">
+        <button 
+          type="button" 
+          id="btnClockIn" 
+          onclick="triggerClockAction('Clock In')" 
+          class="clock-action-btn clock-in-btn"
+          aria-label="Clock in for your morning shift"
+        >
+          <div class="action-btn-content">
+            <span class="action-icon" aria-hidden="true">⏰</span>
+            <div>
+              <span class="action-label-title">Clock In</span>
+              <span class="action-label-sub">Start Daily Shift</span>
+            </div>
+          </div>
+          <span class="action-arrow" aria-hidden="true">➔</span>
+        </button>
+
+        <button 
+          type="button" 
+          id="btnClockOut" 
+          onclick="triggerClockAction('Clock Out')" 
+          class="clock-action-btn clock-out-btn"
+          aria-label="Clock out for your shift completion"
+        >
+          <div class="action-btn-content">
+            <span class="action-icon" aria-hidden="true">🚪</span>
+            <div>
+              <span class="action-label-title">Clock Out</span>
+              <span class="action-label-sub">End Daily Shift</span>
+            </div>
+          </div>
+          <span class="action-arrow" aria-hidden="true">➔</span>
+        </button>
+      </section>
+
+      <!-- GEOLOCATION STATUS NOTE -->
+      <div class="geo-info-box">
+        <span aria-hidden="true">📍</span>
+        <span>GPS reverse-geocoding actively verifies your physical shift location.</span>
+      </div>
+
+      <!-- LEAVE APPLICATION TRIGGER -->
+      <button 
+        type="button" 
+        id="btnOpenLeave" 
+        onclick="openLeaveModal()" 
+        class="leave-request-btn"
+      >
+        <span aria-hidden="true">📅</span>
+        <span>Submit Leave Application</span>
+      </button>
+
+    </article>
+  </main>
+
+  <!-- SHARED LEAVE REGISTRATION MODAL -->
+  <div id="leaveModal" class="modal-backdrop hidden" role="dialog" aria-labelledby="leaveModalTitle" aria-modal="true">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <h3 id="leaveModalTitle">Register Leave Application</h3>
+        <button type="button" class="modal-close" onclick="closeLeaveModal()" aria-label="Close modal">&times;</button>
+      </div>
+      
+      <form id="leaveForm" onsubmit="handleLeaveSubmit(event)">
+        <div class="modal-body">
+          <div id="leaveModalAlert" class="alert hidden" role="alert"></div>
+
+          <div class="form-group">
+            <label class="form-label" for="leaveType">Leave Type</label>
+            <select id="leaveType" name="leaveType" class="form-select" required>
+              <option value="Annual">Annual Leave</option>
+              <option value="Sick">Sick Leave</option>
+              <option value="Family Responsibility">Family Responsibility Leave</option>
+              <option value="Unpaid">Unpaid Leave</option>
+            </select>
+          </div>
+
+          <div class="form-row form-row-2">
+            <div class="form-group">
+              <label class="form-label" for="leaveStartDate">Start Date</label>
+              <input type="date" id="leaveStartDate" name="startDate" class="form-control" required>
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="leaveEndDate">End Date</label>
+              <input type="date" id="leaveEndDate" name="endDate" class="form-control" required>
+            </div>
+          </div>
+
+          <p class="text-muted" style="font-size: 0.775rem;">
+            Approved leave requests will automatically integrate into monthly timesheet compliance records.
+          </p>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline" onclick="closeLeaveModal()">Cancel</button>
+          <button type="submit" id="btnSubmitLeave" class="btn btn-primary">Submit Application</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- SCRIPTS -->
+  <script src="../shared/js/api.js"></script>
+  <script src="../shared/js/leave.js"></script>
+  <script src="employee.js"></script>
+</body>
+</html>
