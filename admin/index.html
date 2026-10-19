@@ -75,15 +75,16 @@
       <div id="adminLogAlert" class="alert hidden" role="alert"></div>
 
       <div class="admin-clock-grid">
-        <button type="button" onclick="triggerAdminClockAction('Clock In')" class="btn btn-secondary btn-lg">
+        <button type="button" id="btnAdminClockIn" onclick="triggerAdminClockAction('Clock In')" class="btn btn-secondary btn-lg">
           <span>⏰</span>
           <span>Clock In</span>
         </button>
-        <button type="button" onclick="triggerAdminClockAction('Clock Out')" class="btn btn-orange btn-lg">
+        <button type="button" id="btnAdminClockOut" onclick="triggerAdminClockAction('Clock Out')" class="btn btn-orange btn-lg" disabled title="You cannot clock out until you have clocked in for today">
           <span>🚪</span>
           <span>Clock Out</span>
         </button>
       </div>
+      <p id="adminClockStatusHint" class="text-muted" style="font-size: 0.75rem; text-align: center; margin-top: 0.5rem; margin-bottom: 0.75rem;">Clock in first to enable clock out</p>
 
       <button type="button" onclick="openLeaveModal()" class="btn btn-outline btn-block btn-sm">
         <span>📅</span>

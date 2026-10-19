@@ -73,10 +73,13 @@
             <span class="action-icon" aria-hidden="true">⏰</span>
             <div>
               <span class="action-label-title">Clock In</span>
-              <span class="action-label-sub">Start Daily Shift</span>
+              <span class="action-label-sub" id="clockInSubtext">Start Daily Shift</span>
             </div>
           </div>
-          <span class="action-arrow" aria-hidden="true">➔</span>
+          <div class="action-btn-right">
+            <span class="action-badge-pill hidden" id="clockInBadge">✓ Clocked In</span>
+            <span class="action-arrow" aria-hidden="true">➔</span>
+          </div>
         </button>
 
         <button 
@@ -85,15 +88,20 @@
           onclick="triggerClockAction('Clock Out')" 
           class="clock-action-btn clock-out-btn"
           aria-label="Clock out for your shift completion"
+          disabled
+          title="Clock in first to enable clock out"
         >
           <div class="action-btn-content">
             <span class="action-icon" aria-hidden="true">🚪</span>
             <div>
               <span class="action-label-title">Clock Out</span>
-              <span class="action-label-sub">End Daily Shift</span>
+              <span class="action-label-sub" id="clockOutSubtext">Clock in first to enable clock out</span>
             </div>
           </div>
-          <span class="action-arrow" aria-hidden="true">➔</span>
+          <div class="action-btn-right">
+            <span class="action-badge-pill" id="clockOutBadge">Clock-In Required</span>
+            <span class="action-arrow" aria-hidden="true">➔</span>
+          </div>
         </button>
       </section>
 

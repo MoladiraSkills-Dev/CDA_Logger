@@ -57,6 +57,7 @@ async function callApi(method, args = {}) {
 const METHOD_ARG_MAPS = {
   registerUser: ["email", "firstName", "lastName", "password"],
   loginUser: ["email", "password"],
+  getTodayShiftStatus: ["email"],
   processActivityLog: ["email", "firstName", "lastName", "action", "lat", "lon"],
   getAdminDashboardData: [],
   adminUpdateDailySummary: ["summaryId", "clockIn", "clockOut", "adminEmail"],
@@ -150,20 +151,40 @@ Object.defineProperty(window.google.script, "run", {
 
 const SESSION_USER_KEY = "cda_active_user";
 const SESSION_ROLE_KEY = "cda_active_role";
+const SESSION_SHIFT_KEY = "cda_active_today_shift";
 
-function saveSession(user, accountType) {
+function saveSession(user, accountType, todayShift = null) {
   sessionStorage.setItem(SESSION_USER_KEY, JSON.stringify(user));
   sessionStorage.setItem(SESSION_ROLE_KEY, accountType);
+  if (todayShift) {
+    sessionStorage.setItem(SESSION_SHIFT_KEY, JSON.stringify(todayShift));
+  } else {
+    sessionStorage.removeItem(SESSION_SHIFT_KEY);
+  }
+}
+
+function updateSessionShift(todayShift) {
+  if (todayShift) {
+    sessionStorage.setItem(SESSION_SHIFT_KEY, JSON.stringify(todayShift));
+  } else {
+    sessionStorage.removeItem(SESSION_SHIFT_KEY);
+  }
 }
 
 function getSession() {
   const userJson = sessionStorage.getItem(SESSION_USER_KEY);
   const accountType = sessionStorage.getItem(SESSION_ROLE_KEY);
   if (!userJson || !accountType) return null;
+  let todayShift = null;
+  const shiftJson = sessionStorage.getItem(SESSION_SHIFT_KEY);
+  if (shiftJson) {
+    try { todayShift = JSON.parse(shiftJson); } catch (e) {}
+  }
   try {
     return {
       user: JSON.parse(userJson),
-      accountType: accountType
+      accountType: accountType,
+      todayShift: todayShift
     };
   } catch (e) {
     return null;
@@ -173,6 +194,7 @@ function getSession() {
 function clearSession() {
   sessionStorage.removeItem(SESSION_USER_KEY);
   sessionStorage.removeItem(SESSION_ROLE_KEY);
+  sessionStorage.removeItem(SESSION_SHIFT_KEY);
 }
 
 function requireSession(expectedRole, loginRedirectUrl = "../index.html") {

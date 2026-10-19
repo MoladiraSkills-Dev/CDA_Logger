@@ -63,7 +63,7 @@ function handleLoginSubmit(e) {
     .withSuccessHandler(function(res) {
       showLoader(false);
       if (res.status === "success") {
-        saveSession(res.user, res.accountType);
+        saveSession(res.user, res.accountType, res.todayShift || null);
         
         // Role-based redirection
         if (res.accountType === "Admin") {
