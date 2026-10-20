@@ -683,11 +683,12 @@ function resetAdminLogFilters() {
 }
 
 /**
- * Maintenance Utility: Re-resolves physical street addresses for historical activity logs
+ * Maintenance Utility: Confirms and updates exact physical street addresses on the "Resolved Location Name" column
+ * for all activity logs with latitude and longitude, ignoring those without coordinates.
  */
-function triggerReResolveLocations() {
-  const btn = document.getElementById("btnReResolveLocations");
-  if (!confirm("Re-resolve physical street addresses for historical activity logs showing cached or unresolved coordinates?")) {
+function triggerUpdateExactLocations() {
+  const btn = document.getElementById("btnUpdateExactLocations") || document.getElementById("btnReResolveLocations");
+  if (!confirm("Confirm and update exact physical street addresses for all activity logs with latitude & longitude?\n\n(Logs without GPS coordinates will be ignored.)")) {
     return;
   }
 
@@ -695,28 +696,32 @@ function triggerReResolveLocations() {
     btn.disabled = true;
     btn.innerText = "Resolving...";
   }
-  showLoader(true, "Re-resolving historical log coordinates via LocationIQ API...");
+  showLoader(true, "Resolving exact street addresses & updating database records...");
 
   google.script.run
     .withFailureHandler(function(err) {
       showLoader(false);
       if (btn) {
         btn.disabled = false;
-        btn.innerText = "📍 Re-resolve GPS";
+        btn.innerText = "📍 Update Exact Locations";
       }
-      alert("Failed to re-resolve locations: " + (err.message || err));
+      alert("Failed to update exact locations: " + (err.message || err));
     })
     .withSuccessHandler(function(res) {
       showLoader(false);
       if (btn) {
         btn.disabled = false;
-        btn.innerText = "📍 Re-resolve GPS";
+        btn.innerText = "📍 Update Exact Locations";
       }
-      const msg = res && res.message ? res.message : "Historical log locations successfully re-resolved.";
+      const msg = res && res.message ? res.message : "Exact locations successfully updated.";
       alert(msg);
       loadAdminDashboard('logsTab');
     })
-    .reResolveHistoricalLogLocations();
+    .updateAndGetExactLocation();
+}
+
+function triggerReResolveLocations() {
+  triggerUpdateExactLocations();
 }
 
 /**
