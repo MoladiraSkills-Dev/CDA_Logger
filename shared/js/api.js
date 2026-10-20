@@ -71,7 +71,10 @@ const METHOD_ARG_MAPS = {
   generateTimesheetsZip: ["email", "startDate", "endDate"],
   extractExistingLogsToDailySummaries: [],
   resetClockOutFloorTimes: [],
-  reResolveHistoricalLogLocations: []
+  reResolveHistoricalLogLocations: [],
+  updateAndGetExactLocation: ["lat", "lon", "logId"],
+  getAndUpdateExactLocation: ["lat", "lon", "logId"],
+  getExactLocationFromCoordinates: ["lat", "lon"]
 };
 
 function normalizeArgs(method, callArgs) {
