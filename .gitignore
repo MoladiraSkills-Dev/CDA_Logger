@@ -7,3 +7,5 @@ Example code.md
 
 # Ignore node_modules if you use them
 node_modules/
+
+/appsscript.json

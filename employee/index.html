@@ -106,9 +106,9 @@
       </section>
 
       <!-- GEOLOCATION STATUS NOTE -->
-      <div class="geo-info-box">
-        <span aria-hidden="true">📍</span>
-        <span>GPS reverse-geocoding actively verifies your physical shift location.</span>
+      <div class="geo-info-box" id="geoStatusBox" aria-live="polite">
+        <span class="geo-status-icon" id="geoStatusIcon" aria-hidden="true">📍</span>
+        <span id="geoStatusText">GPS reverse-geocoding actively verifies your physical shift location.</span>
       </div>
 
       <!-- LEAVE APPLICATION TRIGGER -->

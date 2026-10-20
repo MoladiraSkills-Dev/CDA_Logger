@@ -7,14 +7,44 @@
  */
 
 const LOGIN_URL = "../index.html";
+const PAGE_SIZE = 25;
 
 let CURRENT_ADMIN_USER = null;
+let ACTIVE_ADMIN_TAB = "logsTab";
+
 let CACHED_LOGS_ARRAY = [];
 let CACHED_SUMMARIES_ARRAY = [];
 let CACHED_WEEKLY_ARRAY = [];
 let CACHED_MONTHLY_ARRAY = [];
 let CACHED_LEAVE_ARRAY = [];
 let CACHED_EMPLOYEES_ARRAY = [];
+
+const LOADED_TABS = {
+  logsTab: false,
+  summariesTab: false,
+  weeklyTab: false,
+  monthlyTab: false,
+  leaveTab: false,
+  usersTab: false,
+  exportTab: true
+};
+
+const TAB_PAGE_LIMITS = {
+  logs: PAGE_SIZE,
+  summaries: PAGE_SIZE,
+  weekly: PAGE_SIZE,
+  monthly: PAGE_SIZE,
+  leave: PAGE_SIZE,
+  users: PAGE_SIZE
+};
+
+const TAB_BACKEND_MAP = {
+  summariesTab: "summaries",
+  weeklyTab: "weekly",
+  monthlyTab: "monthly",
+  leaveTab: "leave",
+  usersTab: "users"
+};
 
 document.addEventListener("DOMContentLoaded", function() {
   const session = requireSession("Admin", LOGIN_URL);
@@ -31,27 +61,41 @@ document.addEventListener("DOMContentLoaded", function() {
 });
 
 /**
- * Loads all database tables from Google Apps Script backend
+ * Loads fast initial telemetry data (< 1s) with automatic fallback to full dataset.
  */
-function loadAdminDashboard() {
+function loadAdminDashboard(targetTab = null) {
   showLoader(true, "Synchronizing CDA database records...");
+
+  // Reset pagination chunks for clean reload
+  TAB_PAGE_LIMITS.logs = PAGE_SIZE;
+  TAB_PAGE_LIMITS.summaries = PAGE_SIZE;
+  TAB_PAGE_LIMITS.weekly = PAGE_SIZE;
+  TAB_PAGE_LIMITS.monthly = PAGE_SIZE;
+  TAB_PAGE_LIMITS.leave = PAGE_SIZE;
+  TAB_PAGE_LIMITS.users = PAGE_SIZE;
+
+  // Mark background tabs as needing fresh data
+  Object.keys(LOADED_TABS).forEach(tab => {
+    if (tab !== 'exportTab') LOADED_TABS[tab] = false;
+  });
 
   google.script.run
     .withFailureHandler(function(err) {
-      showLoader(false);
-      alert("System Connection Error: " + err.message);
+      fallbackFullDashboardLoad(targetTab);
     })
     .withSuccessHandler(function(res) {
-      showLoader(false);
-      if (res.status === "success") {
+      if (res && res.status === "success") {
         CACHED_LOGS_ARRAY = res.logs || [];
-        CACHED_SUMMARIES_ARRAY = res.summaries || [];
-        CACHED_WEEKLY_ARRAY = res.weeklySummaries || [];
-        CACHED_MONTHLY_ARRAY = res.monthlySummaries || [];
-        CACHED_LEAVE_ARRAY = res.leaveRequests || [];
         CACHED_EMPLOYEES_ARRAY = res.employees || [];
+        LOADED_TABS['logsTab'] = true;
 
-        // Set initial filter values to today
+        if (res.dailyStats) {
+          const statLogins = document.getElementById("statLogins");
+          const statLogouts = document.getElementById("statLogouts");
+          if (statLogins) statLogins.innerText = res.dailyStats.loginsToday;
+          if (statLogouts) statLogouts.innerText = res.dailyStats.logoutsToday;
+        }
+
         const todayStr = new Date().toISOString().split('T')[0];
         const currentMonthStr = todayStr.substring(0, 7);
 
@@ -63,7 +107,54 @@ function loadAdminDashboard() {
         if (filterSummaryDate && !filterSummaryDate.value) filterSummaryDate.value = todayStr;
         if (filterMonthlyMonth && !filterMonthlyMonth.value) filterMonthlyMonth.value = currentMonthStr;
 
-        // Render sections
+        populateExportEmployeeDropdown(CACHED_EMPLOYEES_ARRAY);
+        applyAdminLogFilters();
+        updateAdminAttendanceButtonStates();
+        showLoader(false);
+
+        const destTab = targetTab || ACTIVE_ADMIN_TAB;
+        if (destTab && destTab !== 'logsTab') {
+          switchAdminTab(destTab);
+        }
+      } else {
+        fallbackFullDashboardLoad(targetTab);
+      }
+    })
+    .getAdminInitData();
+}
+
+/**
+ * Fallback loader if getAdminInitData is not yet deployed on Google Apps Script
+ */
+function fallbackFullDashboardLoad(targetTab = null) {
+  google.script.run
+    .withFailureHandler(function(err) {
+      showLoader(false);
+      alert("System Connection Error: " + (err.message || err));
+    })
+    .withSuccessHandler(function(res) {
+      showLoader(false);
+      if (res && res.status === "success") {
+        CACHED_LOGS_ARRAY = res.logs || [];
+        CACHED_SUMMARIES_ARRAY = res.summaries || [];
+        CACHED_WEEKLY_ARRAY = res.weeklySummaries || [];
+        CACHED_MONTHLY_ARRAY = res.monthlySummaries || [];
+        CACHED_LEAVE_ARRAY = res.leaveRequests || [];
+        CACHED_EMPLOYEES_ARRAY = res.employees || [];
+
+        Object.keys(LOADED_TABS).forEach(k => LOADED_TABS[k] = true);
+
+        const todayStr = new Date().toISOString().split('T')[0];
+        const currentMonthStr = todayStr.substring(0, 7);
+
+        const filterDate = document.getElementById("filterDate");
+        const filterSummaryDate = document.getElementById("filterSummaryDate");
+        const filterMonthlyMonth = document.getElementById("filterMonthlyMonth");
+
+        if (filterDate && !filterDate.value) filterDate.value = todayStr;
+        if (filterSummaryDate && !filterSummaryDate.value) filterSummaryDate.value = todayStr;
+        if (filterMonthlyMonth && !filterMonthlyMonth.value) filterMonthlyMonth.value = currentMonthStr;
+
         renderStaffProfilesTable(CACHED_EMPLOYEES_ARRAY);
         renderLeaveRequestsTable(CACHED_LEAVE_ARRAY);
         populateExportEmployeeDropdown(CACHED_EMPLOYEES_ARRAY);
@@ -73,17 +164,23 @@ function loadAdminDashboard() {
         applyAdminWeeklyFilters();
         applyAdminMonthlyFilters();
         updateAdminAttendanceButtonStates();
+
+        const destTab = targetTab || ACTIVE_ADMIN_TAB;
+        if (destTab) {
+          switchAdminTab(destTab);
+        }
       } else {
-        alert("Database Error: " + res.message);
+        alert("Database Error: " + (res ? res.message : "Failed to load dashboard"));
       }
     })
     .getAdminDashboardData();
 }
 
 /**
- * TAB SWITCHING CONTROLLER
+ * TAB SWITCHING & ON-DEMAND LAZY LOADING CONTROLLER
  */
 function switchAdminTab(tabName) {
+  ACTIVE_ADMIN_TAB = tabName;
   const tabs = ['logsTab', 'summariesTab', 'weeklyTab', 'monthlyTab', 'leaveTab', 'usersTab', 'exportTab'];
   
   tabs.forEach(t => {
@@ -98,6 +195,232 @@ function switchAdminTab(tabName) {
       if (content) content.classList.remove("active");
     }
   });
+
+  // If this tab has not been loaded into memory yet, trigger on-demand AJAX fetch
+  if (!LOADED_TABS[tabName] && TAB_BACKEND_MAP[tabName]) {
+    fetchTabData(tabName);
+  }
+}
+
+/**
+ * Fetches isolated tab data from backend via AJAX
+ */
+function fetchTabData(tabName) {
+  const backendKey = TAB_BACKEND_MAP[tabName];
+  if (!backendKey) return;
+
+  showTabInlineLoader(tabName);
+
+  google.script.run
+    .withFailureHandler(function(err) {
+      hideTabInlineLoader(tabName, "Failed to load data: " + (err.message || err));
+    })
+    .withSuccessHandler(function(res) {
+      if (res && res.status === "success") {
+        LOADED_TABS[tabName] = true;
+
+        if (res.summaries) {
+          CACHED_SUMMARIES_ARRAY = res.summaries;
+          applyAdminSummaryFilters();
+          updateAdminAttendanceButtonStates();
+        } else if (res.weeklySummaries) {
+          CACHED_WEEKLY_ARRAY = res.weeklySummaries;
+          applyAdminWeeklyFilters();
+        } else if (res.monthlySummaries) {
+          CACHED_MONTHLY_ARRAY = res.monthlySummaries;
+          applyAdminMonthlyFilters();
+        } else if (res.leaveRequests) {
+          CACHED_LEAVE_ARRAY = res.leaveRequests;
+          renderLeaveRequestsTable(CACHED_LEAVE_ARRAY);
+        } else if (res.employees) {
+          CACHED_EMPLOYEES_ARRAY = res.employees;
+          renderStaffProfilesTable(CACHED_EMPLOYEES_ARRAY);
+          populateExportEmployeeDropdown(CACHED_EMPLOYEES_ARRAY);
+        }
+      } else {
+        hideTabInlineLoader(tabName, "Database error: " + (res ? res.message : "Unknown error"));
+      }
+    })
+    .getAdminTabData(backendKey);
+}
+
+function showTabInlineLoader(tabName) {
+  const tableBodies = {
+    summariesTab: { id: "summariesTableBody", cols: 8, label: "daily shift summaries" },
+    weeklyTab: { id: "weeklyTableBody", cols: 6, label: "weekly compliance records" },
+    monthlyTab: { id: "monthlyTableBody", cols: 6, label: "monthly summaries" },
+    leaveTab: { id: "leaveTableBody", cols: 5, label: "leave applications" },
+    usersTab: { id: "usersTableBody", cols: 4, label: "employee profiles" }
+  };
+
+  const cfg = tableBodies[tabName];
+  if (!cfg) return;
+  const tbody = document.getElementById(cfg.id);
+  if (tbody) {
+    tbody.innerHTML = `
+      <tr>
+        <td colspan="${cfg.cols}" class="text-center" style="padding: 3rem 1.5rem;">
+          <div class="inline-loader-wrap">
+            <div class="inline-spinner"></div>
+            <div style="font-weight: 600; color: var(--cda-navy); margin-top: 0.75rem;">Loading ${cfg.label}...</div>
+            <div class="text-muted" style="font-size: 0.75rem; margin-top: 0.25rem;">Fetching real-time records from CDA database</div>
+          </div>
+        </td>
+      </tr>
+    `;
+  }
+}
+
+function hideTabInlineLoader(tabName, errorMsg) {
+  const tableBodies = {
+    summariesTab: { id: "summariesTableBody", cols: 8 },
+    weeklyTab: { id: "weeklyTableBody", cols: 6 },
+    monthlyTab: { id: "monthlyTableBody", cols: 6 },
+    leaveTab: { id: "leaveTableBody", cols: 5 },
+    usersTab: { id: "usersTableBody", cols: 4 }
+  };
+  const cfg = tableBodies[tabName];
+  if (!cfg) return;
+  const tbody = document.getElementById(cfg.id);
+  if (tbody && errorMsg) {
+    tbody.innerHTML = `<tr><td colspan="${cfg.cols}" class="text-center text-danger" style="padding: 2rem;">${escapeHtml(errorMsg)}</td></tr>`;
+  }
+}
+
+/**
+ * REUSABLE PAGINATION & INCREMENTAL RENDERER
+ */
+function renderPaginationBar(containerId, totalCount, currentLimit, onMoreFnName, onAllFnName, onResetFnName) {
+  const container = document.getElementById(containerId);
+  if (!container) return;
+
+  if (totalCount === 0) {
+    container.innerHTML = "";
+    return;
+  }
+
+  if (totalCount <= PAGE_SIZE) {
+    container.innerHTML = `
+      <div class="pagination-inner">
+        <div class="pagination-info">
+          Showing all <strong>${totalCount}</strong> record${totalCount === 1 ? '' : 's'}
+        </div>
+      </div>
+    `;
+    return;
+  }
+
+  const showingCount = Math.min(totalCount, currentLimit);
+  const remaining = totalCount - showingCount;
+
+  let actionsHtml = '';
+  if (remaining > 0) {
+    const nextChunk = Math.min(PAGE_SIZE, remaining);
+    actionsHtml = `
+      <button type="button" class="btn btn-outline btn-sm btn-load-more" onclick="${onMoreFnName}()">
+        <span>⬇</span> Load More (+${nextChunk})
+      </button>
+      <button type="button" class="btn btn-outline btn-sm" onclick="${onAllFnName}()">
+        Show All (${totalCount})
+      </button>
+    `;
+  } else {
+    actionsHtml = `
+      <span class="pagination-all-loaded">✓ All ${totalCount} records displayed</span>
+      <button type="button" class="btn btn-outline btn-sm" onclick="${onResetFnName}()">
+        Collapse to ${PAGE_SIZE}
+      </button>
+    `;
+  }
+
+  container.innerHTML = `
+    <div class="pagination-inner">
+      <div class="pagination-info">
+        Showing <strong>${showingCount}</strong> of <strong>${totalCount}</strong> records
+      </div>
+      <div class="pagination-actions">
+        ${actionsHtml}
+      </div>
+    </div>
+  `;
+}
+
+function loadMoreLogs() {
+  TAB_PAGE_LIMITS.logs += PAGE_SIZE;
+  applyAdminLogFilters();
+}
+function showAllLogs() {
+  TAB_PAGE_LIMITS.logs = 999999;
+  applyAdminLogFilters();
+}
+function resetLogsPagination() {
+  TAB_PAGE_LIMITS.logs = PAGE_SIZE;
+  applyAdminLogFilters();
+}
+
+function loadMoreSummaries() {
+  TAB_PAGE_LIMITS.summaries += PAGE_SIZE;
+  applyAdminSummaryFilters();
+}
+function showAllSummaries() {
+  TAB_PAGE_LIMITS.summaries = 999999;
+  applyAdminSummaryFilters();
+}
+function resetSummariesPagination() {
+  TAB_PAGE_LIMITS.summaries = PAGE_SIZE;
+  applyAdminSummaryFilters();
+}
+
+function loadMoreWeekly() {
+  TAB_PAGE_LIMITS.weekly += PAGE_SIZE;
+  applyAdminWeeklyFilters();
+}
+function showAllWeekly() {
+  TAB_PAGE_LIMITS.weekly = 999999;
+  applyAdminWeeklyFilters();
+}
+function resetWeeklyPagination() {
+  TAB_PAGE_LIMITS.weekly = PAGE_SIZE;
+  applyAdminWeeklyFilters();
+}
+
+function loadMoreMonthly() {
+  TAB_PAGE_LIMITS.monthly += PAGE_SIZE;
+  applyAdminMonthlyFilters();
+}
+function showAllMonthly() {
+  TAB_PAGE_LIMITS.monthly = 999999;
+  applyAdminMonthlyFilters();
+}
+function resetMonthlyPagination() {
+  TAB_PAGE_LIMITS.monthly = PAGE_SIZE;
+  applyAdminMonthlyFilters();
+}
+
+function loadMoreLeave() {
+  TAB_PAGE_LIMITS.leave += PAGE_SIZE;
+  renderLeaveRequestsTable(CACHED_LEAVE_ARRAY);
+}
+function showAllLeave() {
+  TAB_PAGE_LIMITS.leave = 999999;
+  renderLeaveRequestsTable(CACHED_LEAVE_ARRAY);
+}
+function resetLeavePagination() {
+  TAB_PAGE_LIMITS.leave = PAGE_SIZE;
+  renderLeaveRequestsTable(CACHED_LEAVE_ARRAY);
+}
+
+function loadMoreUsers() {
+  TAB_PAGE_LIMITS.users += PAGE_SIZE;
+  renderStaffProfilesTable(CACHED_EMPLOYEES_ARRAY);
+}
+function showAllUsers() {
+  TAB_PAGE_LIMITS.users = 999999;
+  renderStaffProfilesTable(CACHED_EMPLOYEES_ARRAY);
+}
+function resetUsersPagination() {
+  TAB_PAGE_LIMITS.users = PAGE_SIZE;
+  renderStaffProfilesTable(CACHED_EMPLOYEES_ARRAY);
 }
 
 /**
@@ -178,7 +501,7 @@ function updateAdminAttendanceButtonStates() {
   }
 }
 
-function triggerAdminClockAction(actionType) {
+async function triggerAdminClockAction(actionType) {
   const alertBox = document.getElementById("adminLogAlert");
   if (alertBox) alertBox.classList.add("hidden");
 
@@ -217,43 +540,55 @@ function triggerAdminClockAction(actionType) {
 
   showLoader(true, `Querying GPS coordinates for Admin ${actionType}...`);
 
-  navigator.geolocation.getCurrentPosition(
-    function(pos) {
-      const lat = pos.coords.latitude;
-      const lon = pos.coords.longitude;
+  try {
+    const pos = await getCurrentCoordinates();
+    const lat = pos.coords.latitude;
+    const lon = pos.coords.longitude;
 
-      showLoader(true, `Logging ${actionType} with reverse geocoding...`);
+    showLoader(true, `Resolving physical location & logging Admin ${actionType}...`);
 
-      google.script.run
-        .withFailureHandler(function(err) {
-          showLoader(false);
-          showAlertUI(alertBox, "Attendance Error: " + err.message, true);
-        })
-        .withSuccessHandler(function(res) {
-          showLoader(false);
-          if (res.status === "success") {
-            const msg = `${res.action} recorded at ${res.time} (${res.location})`;
-            showAlertUI(alertBox, msg, false);
-            loadAdminDashboard();
-          } else {
-            showAlertUI(alertBox, res.message || "Attendance action blocked.", true);
-          }
-        })
-        .processActivityLog(
-          CURRENT_ADMIN_USER.email,
-          CURRENT_ADMIN_USER.firstName,
-          CURRENT_ADMIN_USER.lastName,
-          actionType,
-          lat,
-          lon
-        );
-    },
-    function(err) {
-      showLoader(false);
-      showAlertUI(alertBox, "GPS blocked: Please enable device location settings in your browser.", true);
-    },
-    { enableHighAccuracy: true, timeout: 12000, maximumAge: 0 }
-  );
+    let resolvedAddress = "";
+    try {
+      resolvedAddress = await resolveGeolocationAddress(lat, lon);
+    } catch (e) {
+      resolvedAddress = `GPS: ${lat.toFixed(4)}, ${lon.toFixed(4)}`;
+    }
+
+    google.script.run
+      .withFailureHandler(function(err) {
+        showLoader(false);
+        showAlertUI(alertBox, "Attendance Error: " + (err.message || err), true);
+      })
+      .withSuccessHandler(function(res) {
+        showLoader(false);
+        if (res.status === "success") {
+          const finalLocation = (res.location && !res.location.includes("Offline/Cached") && !res.location.includes("Unknown"))
+            ? res.location
+            : resolvedAddress;
+
+          const msg = `${res.action} recorded at ${res.time} (${finalLocation})`;
+          showAlertUI(alertBox, msg, false);
+          loadAdminDashboard('logsTab');
+        } else {
+          showAlertUI(alertBox, res.message || "Attendance action blocked.", true);
+        }
+      })
+      .processActivityLog(
+        CURRENT_ADMIN_USER.email,
+        CURRENT_ADMIN_USER.firstName,
+        CURRENT_ADMIN_USER.lastName,
+        actionType,
+        lat,
+        lon,
+        resolvedAddress
+      );
+  } catch (err) {
+    showLoader(false);
+    let errMsg = "GPS blocked: Please enable device location settings in your browser.";
+    if (err.code === 2) errMsg = "Location unavailable. Please check your network or GPS connection.";
+    if (err.code === 3) errMsg = "Location request timed out. Please try again.";
+    showAlertUI(alertBox, errMsg, true);
+  }
 }
 
 /**
@@ -271,8 +606,9 @@ function applyAdminLogFilters() {
 
   const filtered = CACHED_LOGS_ARRAY.filter(log => {
     const matchesDate = (selectedDate === "") || (log.date === selectedDate);
-    const fullName = `${log.firstName} ${log.lastName}`.toLowerCase();
-    const matchesSearch = (searchQuery === "") || fullName.includes(searchQuery) || log.email.toLowerCase().includes(searchQuery);
+    const fullName = `${log.firstName || ""} ${log.lastName || ""}`.toLowerCase();
+    const email = (log.email || "").toLowerCase();
+    const matchesSearch = (searchQuery === "") || fullName.includes(searchQuery) || email.includes(searchQuery);
 
     if (matchesDate && matchesSearch) {
       if (log.action === "Clock In") totalLogins++;
@@ -295,16 +631,19 @@ function applyAdminLogFilters() {
 
   if (filtered.length === 0) {
     tbody.innerHTML = `<tr><td colspan="5" class="text-center text-muted" style="padding: 2rem;">No telemetry logs match active filter criteria.</td></tr>`;
+    renderPaginationBar("logsPagination", 0, TAB_PAGE_LIMITS.logs, "loadMoreLogs", "showAllLogs", "resetLogsPagination");
     return;
   }
 
-  tbody.innerHTML = filtered.map(log => {
+  const visibleSlice = filtered.slice(0, TAB_PAGE_LIMITS.logs);
+
+  tbody.innerHTML = visibleSlice.map(log => {
     const coordsDisplay = (log.lat && log.lon && log.lat !== "0")
-      ? `<span class="cell-gps-pill">GPS: ${log.lat}, ${log.lon}</span>`
-      : `<span class="cell-gps-pill" style="color: var(--cda-slate-400); background: #f1f5f9; border-color: #e2e8f0;">GPS: Telemetry standard</span>`;
+      ? `<a href="https://maps.google.com/?q=${encodeURIComponent(log.lat + ',' + log.lon)}" target="_blank" rel="noopener noreferrer" class="cell-gps-pill" title="View coordinates on Google Maps" style="text-decoration: none; display: inline-flex; align-items: center; gap: 4px; margin-top: 4px;">📍 GPS: ${escapeHtml(log.lat)}, ${escapeHtml(log.lon)} ↗</a>`
+      : `<span class="cell-gps-pill" style="color: var(--cda-slate-400); background: #f1f5f9; border-color: #e2e8f0; margin-top: 4px;">GPS: Telemetry standard</span>`;
 
     const editedTag = log.editedBy
-      ? `<span class="cell-edited-pill">Edited: ${log.editedBy}</span>`
+      ? `<span class="cell-edited-pill">Edited: ${escapeHtml(log.editedBy)}</span>`
       : `<span class="text-muted" style="font-size: 0.75rem;">--</span>`;
 
     const actionBadge = log.action === "Clock In"
@@ -330,14 +669,54 @@ function applyAdminLogFilters() {
       </tr>
     `;
   }).join("");
+
+  renderPaginationBar("logsPagination", filtered.length, TAB_PAGE_LIMITS.logs, "loadMoreLogs", "showAllLogs", "resetLogsPagination");
 }
 
 function resetAdminLogFilters() {
+  TAB_PAGE_LIMITS.logs = PAGE_SIZE;
   const dateInput = document.getElementById("filterDate");
   const searchInput = document.getElementById("filterSearch");
   if (dateInput) dateInput.value = new Date().toISOString().split('T')[0];
   if (searchInput) searchInput.value = "";
   applyAdminLogFilters();
+}
+
+/**
+ * Maintenance Utility: Re-resolves physical street addresses for historical activity logs
+ */
+function triggerReResolveLocations() {
+  const btn = document.getElementById("btnReResolveLocations");
+  if (!confirm("Re-resolve physical street addresses for historical activity logs showing cached or unresolved coordinates?")) {
+    return;
+  }
+
+  if (btn) {
+    btn.disabled = true;
+    btn.innerText = "Resolving...";
+  }
+  showLoader(true, "Re-resolving historical log coordinates via LocationIQ API...");
+
+  google.script.run
+    .withFailureHandler(function(err) {
+      showLoader(false);
+      if (btn) {
+        btn.disabled = false;
+        btn.innerText = "📍 Re-resolve GPS";
+      }
+      alert("Failed to re-resolve locations: " + (err.message || err));
+    })
+    .withSuccessHandler(function(res) {
+      showLoader(false);
+      if (btn) {
+        btn.disabled = false;
+        btn.innerText = "📍 Re-resolve GPS";
+      }
+      const msg = res && res.message ? res.message : "Historical log locations successfully re-resolved.";
+      alert(msg);
+      loadAdminDashboard('logsTab');
+    })
+    .reResolveHistoricalLogLocations();
 }
 
 /**
@@ -352,8 +731,9 @@ function applyAdminSummaryFilters() {
 
   const filtered = CACHED_SUMMARIES_ARRAY.filter(sum => {
     const matchesDate = (selectedDate === "") || (sum.date === selectedDate);
-    const fullName = `${sum.firstName} ${sum.lastName}`.toLowerCase();
-    const matchesSearch = (searchQuery === "") || fullName.includes(searchQuery) || sum.email.toLowerCase().includes(searchQuery);
+    const fullName = `${sum.firstName || ""} ${sum.lastName || ""}`.toLowerCase();
+    const email = (sum.email || "").toLowerCase();
+    const matchesSearch = (searchQuery === "") || fullName.includes(searchQuery) || email.includes(searchQuery);
     return matchesDate && matchesSearch;
   });
 
@@ -361,6 +741,7 @@ function applyAdminSummaryFilters() {
 }
 
 function resetAdminSummaryFilters() {
+  TAB_PAGE_LIMITS.summaries = PAGE_SIZE;
   const dateInput = document.getElementById("filterSummaryDate");
   const searchInput = document.getElementById("filterSummarySearch");
   if (dateInput) dateInput.value = "";
@@ -372,12 +753,15 @@ function renderSummariesTable(summaries) {
   const tbody = document.getElementById("summariesTableBody");
   if (!tbody) return;
 
-  if (summaries.length === 0) {
+  if (!summaries || summaries.length === 0) {
     tbody.innerHTML = `<tr><td colspan="8" class="text-center text-muted" style="padding: 2rem;">No daily shift summaries found for active filters.</td></tr>`;
+    renderPaginationBar("summariesPagination", 0, TAB_PAGE_LIMITS.summaries, "loadMoreSummaries", "showAllSummaries", "resetSummariesPagination");
     return;
   }
 
-  tbody.innerHTML = summaries.map(sum => {
+  const visibleSlice = summaries.slice(0, TAB_PAGE_LIMITS.summaries);
+
+  tbody.innerHTML = visibleSlice.map(sum => {
     const statusBadge = sum.status === "Completed"
       ? `<span class="badge badge-success">Completed</span>`
       : `<span class="badge badge-warning">In Progress</span>`;
@@ -425,6 +809,8 @@ function renderSummariesTable(summaries) {
       </tr>
     `;
   }).join("");
+
+  renderPaginationBar("summariesPagination", summaries.length, TAB_PAGE_LIMITS.summaries, "loadMoreSummaries", "showAllSummaries", "resetSummariesPagination");
 }
 
 function formatTimeForInput(timeStr) {
@@ -471,7 +857,7 @@ function handleSummaryUpdateSave(e) {
       showLoader(false);
       closeSummaryEditModal();
       if (res.status === "success") {
-        loadAdminDashboard();
+        loadAdminDashboard('summariesTab');
       } else {
         alert("Error: " + res.message);
       }
@@ -494,7 +880,7 @@ function deleteDailySummary(summaryId, dateStr, email) {
     .withSuccessHandler(function(res) {
       showLoader(false);
       if (res.status === "success") {
-        loadAdminDashboard();
+        loadAdminDashboard('summariesTab');
       } else {
         alert("Error: " + res.message);
       }
@@ -513,9 +899,11 @@ function applyAdminWeeklyFilters() {
   const searchQuery = searchInput ? searchInput.value.trim().toLowerCase() : "";
 
   const filtered = CACHED_WEEKLY_ARRAY.filter(w => {
-    const matchesWeek = (selectedKey === "") || (w.weekKey.toUpperCase().includes(selectedKey));
-    const fullName = `${w.firstName} ${w.lastName}`.toLowerCase();
-    const matchesSearch = (searchQuery === "") || fullName.includes(searchQuery) || w.email.toLowerCase().includes(searchQuery);
+    const weekKey = (w.weekKey || "").toUpperCase();
+    const matchesWeek = (selectedKey === "") || weekKey.includes(selectedKey);
+    const fullName = `${w.firstName || ""} ${w.lastName || ""}`.toLowerCase();
+    const email = (w.email || "").toLowerCase();
+    const matchesSearch = (searchQuery === "") || fullName.includes(searchQuery) || email.includes(searchQuery);
     return matchesWeek && matchesSearch;
   });
 
@@ -523,6 +911,7 @@ function applyAdminWeeklyFilters() {
 }
 
 function resetAdminWeeklyFilters() {
+  TAB_PAGE_LIMITS.weekly = PAGE_SIZE;
   const keyInput = document.getElementById("filterWeeklyKey");
   const searchInput = document.getElementById("filterWeeklySearch");
   if (keyInput) keyInput.value = "";
@@ -534,12 +923,15 @@ function renderWeeklyTable(weeklyData) {
   const tbody = document.getElementById("weeklyTableBody");
   if (!tbody) return;
 
-  if (weeklyData.length === 0) {
+  if (!weeklyData || weeklyData.length === 0) {
     tbody.innerHTML = `<tr><td colspan="6" class="text-center text-muted" style="padding: 2rem;">No weekly summary records match filter criteria.</td></tr>`;
+    renderPaginationBar("weeklyPagination", 0, TAB_PAGE_LIMITS.weekly, "loadMoreWeekly", "showAllWeekly", "resetWeeklyPagination");
     return;
   }
 
-  tbody.innerHTML = weeklyData.map(w => {
+  const visibleSlice = weeklyData.slice(0, TAB_PAGE_LIMITS.weekly);
+
+  tbody.innerHTML = visibleSlice.map(w => {
     let complianceBadge = `<span class="badge compliance-under">Under Target (&lt;45 hrs)</span>`;
     if (w.complianceStatus.includes("MAX CAP ALERT")) {
       complianceBadge = `<span class="badge compliance-max-alert">🔴 MAX CAP ALERT (55+ hrs)</span>`;
@@ -566,6 +958,8 @@ function renderWeeklyTable(weeklyData) {
       </tr>
     `;
   }).join("");
+
+  renderPaginationBar("weeklyPagination", weeklyData.length, TAB_PAGE_LIMITS.weekly, "loadMoreWeekly", "showAllWeekly", "resetWeeklyPagination");
 }
 
 /**
@@ -580,8 +974,9 @@ function applyAdminMonthlyFilters() {
 
   const filtered = CACHED_MONTHLY_ARRAY.filter(m => {
     const matchesMonth = (selectedMonth === "") || (m.month === selectedMonth);
-    const fullName = `${m.firstName} ${m.lastName}`.toLowerCase();
-    const matchesSearch = (searchQuery === "") || fullName.includes(searchQuery) || m.email.toLowerCase().includes(searchQuery);
+    const fullName = `${m.firstName || ""} ${m.lastName || ""}`.toLowerCase();
+    const email = (m.email || "").toLowerCase();
+    const matchesSearch = (searchQuery === "") || fullName.includes(searchQuery) || email.includes(searchQuery);
     return matchesMonth && matchesSearch;
   });
 
@@ -589,6 +984,7 @@ function applyAdminMonthlyFilters() {
 }
 
 function resetAdminMonthlyFilters() {
+  TAB_PAGE_LIMITS.monthly = PAGE_SIZE;
   const monthInput = document.getElementById("filterMonthlyMonth");
   const searchInput = document.getElementById("filterMonthlySearch");
   if (monthInput) monthInput.value = "";
@@ -600,12 +996,15 @@ function renderMonthlyTable(monthlyData) {
   const tbody = document.getElementById("monthlyTableBody");
   if (!tbody) return;
 
-  if (monthlyData.length === 0) {
+  if (!monthlyData || monthlyData.length === 0) {
     tbody.innerHTML = `<tr><td colspan="6" class="text-center text-muted" style="padding: 2rem;">No monthly summaries match filter configuration.</td></tr>`;
+    renderPaginationBar("monthlyPagination", 0, TAB_PAGE_LIMITS.monthly, "loadMoreMonthly", "showAllMonthly", "resetMonthlyPagination");
     return;
   }
 
-  tbody.innerHTML = monthlyData.map(m => {
+  const visibleSlice = monthlyData.slice(0, TAB_PAGE_LIMITS.monthly);
+
+  tbody.innerHTML = visibleSlice.map(m => {
     const isOt = m.totalOvertime && m.totalOvertime !== "0 mins" && m.totalOvertime !== "N/A";
     const otBadge = isOt
       ? `<span class="badge badge-purple">${m.totalOvertime}</span>`
@@ -625,6 +1024,8 @@ function renderMonthlyTable(monthlyData) {
       </tr>
     `;
   }).join("");
+
+  renderPaginationBar("monthlyPagination", monthlyData.length, TAB_PAGE_LIMITS.monthly, "loadMoreMonthly", "showAllMonthly", "resetMonthlyPagination");
 }
 
 /**
@@ -634,12 +1035,15 @@ function renderLeaveRequestsTable(requests) {
   const tbody = document.getElementById("leaveTableBody");
   if (!tbody) return;
 
-  if (requests.length === 0) {
+  if (!requests || requests.length === 0) {
     tbody.innerHTML = `<tr><td colspan="5" class="text-center text-muted" style="padding: 2rem;">No leave applications on record.</td></tr>`;
+    renderPaginationBar("leavePagination", 0, TAB_PAGE_LIMITS.leave, "loadMoreLeave", "showAllLeave", "resetLeavePagination");
     return;
   }
 
-  tbody.innerHTML = requests.map(req => {
+  const visibleSlice = requests.slice(0, TAB_PAGE_LIMITS.leave);
+
+  tbody.innerHTML = visibleSlice.map(req => {
     let statusBadge = `<span class="badge badge-warning">Pending</span>`;
     if (req.status === "Approved") statusBadge = `<span class="badge badge-success">Approved</span>`;
     if (req.status === "Rejected") statusBadge = `<span class="badge badge-danger">Rejected</span>`;
@@ -668,6 +1072,8 @@ function renderLeaveRequestsTable(requests) {
       </tr>
     `;
   }).join("");
+
+  renderPaginationBar("leavePagination", requests.length, TAB_PAGE_LIMITS.leave, "loadMoreLeave", "showAllLeave", "resetLeavePagination");
 }
 
 function handleLeaveAction(reqId, newStatus) {
@@ -681,7 +1087,7 @@ function handleLeaveAction(reqId, newStatus) {
     .withSuccessHandler(function(res) {
       showLoader(false);
       if (res.status === "success") {
-        loadAdminDashboard();
+        loadAdminDashboard('leaveTab');
       } else {
         alert("Error: " + res.message);
       }
@@ -696,12 +1102,15 @@ function renderStaffProfilesTable(employees) {
   const tbody = document.getElementById("usersTableBody");
   if (!tbody) return;
 
-  if (employees.length === 0) {
+  if (!employees || employees.length === 0) {
     tbody.innerHTML = `<tr><td colspan="4" class="text-center text-muted" style="padding: 2rem;">No registered staff profiles found.</td></tr>`;
+    renderPaginationBar("usersPagination", 0, TAB_PAGE_LIMITS.users, "loadMoreUsers", "showAllUsers", "resetUsersPagination");
     return;
   }
 
-  tbody.innerHTML = employees.map(emp => {
+  const visibleSlice = employees.slice(0, TAB_PAGE_LIMITS.users);
+
+  tbody.innerHTML = visibleSlice.map(emp => {
     const workBadge = emp.workStatus === "On Leave"
       ? `<span class="badge badge-warning">On Leave</span>`
       : `<span class="badge badge-success">Active</span>`;
@@ -730,6 +1139,8 @@ function renderStaffProfilesTable(employees) {
       </tr>
     `;
   }).join("");
+
+  renderPaginationBar("usersPagination", employees.length, TAB_PAGE_LIMITS.users, "loadMoreUsers", "showAllUsers", "resetUsersPagination");
 }
 
 function openEditModal(email, first, last, status) {
@@ -769,7 +1180,7 @@ function handleAdminUpdateSave(e) {
       showLoader(false);
       closeEditModal();
       if (res.status === "success") {
-        loadAdminDashboard();
+        loadAdminDashboard('usersTab');
       } else {
         alert("Error: " + res.message);
       }

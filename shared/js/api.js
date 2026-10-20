@@ -58,8 +58,10 @@ const METHOD_ARG_MAPS = {
   registerUser: ["email", "firstName", "lastName", "password"],
   loginUser: ["email", "password"],
   getTodayShiftStatus: ["email"],
-  processActivityLog: ["email", "firstName", "lastName", "action", "lat", "lon"],
+  processActivityLog: ["email", "firstName", "lastName", "action", "lat", "lon", "clientLocation"],
   getAdminDashboardData: [],
+  getAdminInitData: [],
+  getAdminTabData: ["tabName", "limit", "offset"],
   adminUpdateDailySummary: ["summaryId", "clockIn", "clockOut", "adminEmail"],
   adminDeleteDailySummary: ["summaryId", "dateStr", "email", "adminEmail"],
   adminUpdateUser: ["targetEmail", "firstName", "lastName", "status", "newPassword"],
@@ -68,7 +70,8 @@ const METHOD_ARG_MAPS = {
   exportTimesheetData: ["email", "startDate", "endDate", "format"],
   generateTimesheetsZip: ["email", "startDate", "endDate"],
   extractExistingLogsToDailySummaries: [],
-  resetClockOutFloorTimes: []
+  resetClockOutFloorTimes: [],
+  reResolveHistoricalLogLocations: []
 };
 
 function normalizeArgs(method, callArgs) {
@@ -261,6 +264,16 @@ function showAlertUI(targetElOrId, text, isError = false) {
   el.classList.remove("hidden");
 }
 
+function escapeHtml(str) {
+  if (str === undefined || str === null) return "";
+  return String(str)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
 function triggerNativeDownload(base64Data, contentType, filename) {
   try {
     const byteCharacters = atob(base64Data);
@@ -290,3 +303,113 @@ function triggerNativeDownload(base64Data, contentType, filename) {
     alert("Download failed: " + err.message);
   }
 }
+
+/**
+ * ==========================================================================
+ * GEOLOCATION & REVERSE-GEOCODING RUNTIME
+ * ==========================================================================
+ */
+const LOCATIONIQ_API_KEY = "pk.1be07ee2080691339d8fc4f1712dbc95";
+
+/**
+ * Robust two-stage Geolocation acquisition:
+ * Attempts high-precision GPS first (e.g. mobile sensor);
+ * Automatically falls back to standard network triangulation if timeout or unavailable.
+ */
+function getCurrentCoordinates(options = {}) {
+  return new Promise((resolve, reject) => {
+    if (!navigator.geolocation) {
+      return reject(new Error("Geolocation is not supported by your current browser device."));
+    }
+
+    const highAccuracyTimeout = options.highAccuracyTimeout || 7000;
+    const standardTimeout = options.standardTimeout || 15000;
+
+    navigator.geolocation.getCurrentPosition(
+      (pos) => resolve(pos),
+      (err) => {
+        // Fallback to network/standard location if high accuracy timed out (code 3) or position unavailable (code 2)
+        if (err.code === 2 || err.code === 3) {
+          console.warn("[Geolocation] High accuracy GPS query timed out/unavailable. Attempting standard network positioning...", err);
+          navigator.geolocation.getCurrentPosition(
+            (fallbackPos) => resolve(fallbackPos),
+            (fallbackErr) => reject(fallbackErr),
+            { enableHighAccuracy: false, timeout: standardTimeout, maximumAge: 60000 }
+          );
+        } else {
+          // Terminal error (e.g., code 1 = Permission Denied)
+          reject(err);
+        }
+      },
+      { enableHighAccuracy: true, timeout: highAccuracyTimeout, maximumAge: 10000 }
+    );
+  });
+}
+
+/**
+ * Reverse geocodes latitude/longitude coordinates into a human-readable physical street address.
+ * Primary: LocationIQ Reverse Geocoding API.
+ * Secondary Fallback: BigDataCloud Reverse Geocoder (open CORS client endpoint).
+ * Tertiary Fallback: OpenStreetMap Nominatim.
+ * Terminal Fallback: Structured GPS Coordinates.
+ */
+async function resolveGeolocationAddress(lat, lon) {
+  if (!lat || !lon || lat === "0" || lon === "0") {
+    return "Unknown/Unresolved Coordinates";
+  }
+
+  const numLat = parseFloat(lat);
+  const numLon = parseFloat(lon);
+  if (isNaN(numLat) || isNaN(numLon)) {
+    return "Invalid Coordinates";
+  }
+
+  // Provider 1: LocationIQ Reverse API
+  try {
+    const locIqUrl = `https://us1.locationiq.com/v1/reverse?key=${LOCATIONIQ_API_KEY}&lat=${encodeURIComponent(numLat)}&lon=${encodeURIComponent(numLon)}&format=json`;
+    const res = await fetch(locIqUrl, { headers: { "Accept": "application/json" } });
+    if (res.ok) {
+      const data = await res.json();
+      if (data && data.display_name) {
+        return data.display_name;
+      }
+    }
+  } catch (err) {
+    console.warn("[LocationIQ] Primary reverse geocode failed, attempting secondary provider:", err);
+  }
+
+  // Provider 2: BigDataCloud Reverse Geocoder
+  try {
+    const bdcUrl = `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${encodeURIComponent(numLat)}&longitude=${encodeURIComponent(numLon)}&localityLanguage=en`;
+    const res = await fetch(bdcUrl);
+    if (res.ok) {
+      const data = await res.json();
+      const parts = [
+        data.locality || data.city,
+        data.principalSubdivision,
+        data.countryName
+      ].filter(Boolean);
+      if (parts.length > 0) {
+        return parts.join(", ");
+      }
+    }
+  } catch (err) {
+    console.warn("[BigDataCloud] Secondary reverse geocode failed:", err);
+  }
+
+  // Provider 3: OpenStreetMap Nominatim
+  try {
+    const nomUrl = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${encodeURIComponent(numLat)}&lon=${encodeURIComponent(numLon)}`;
+    const res = await fetch(nomUrl, { headers: { "Accept": "application/json" } });
+    if (res.ok) {
+      const data = await res.json();
+      if (data && data.display_name) {
+        return data.display_name;
+      }
+    }
+  } catch (err) {}
+
+  // Terminal Fallback: Structured GPS Coordinates
+  return `GPS: ${numLat.toFixed(5)}, ${numLon.toFixed(5)}`;
+}
+

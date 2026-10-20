@@ -146,6 +146,7 @@
             <input type="date" id="filterDate" onchange="applyAdminLogFilters()" class="form-control" style="width: auto; padding: 0.45rem 0.75rem; font-size: 0.8rem;">
             <input type="text" id="filterSearch" oninput="applyAdminLogFilters()" placeholder="Filter by staff name/email..." class="form-control" style="width: 220px; padding: 0.45rem 0.75rem; font-size: 0.8rem;">
             <button type="button" onclick="resetAdminLogFilters()" class="btn btn-outline btn-sm">Reset</button>
+            <button type="button" id="btnReResolveLocations" onclick="triggerReResolveLocations()" class="btn btn-outline btn-sm" title="Re-resolve street addresses for historical logs with unresolved coordinates" style="display:inline-flex; align-items:center; gap:4px;">📍 Re-resolve GPS</button>
           </div>
         </div>
 
@@ -163,6 +164,7 @@
             <tr><td colspan="5" class="text-center text-muted" style="padding: 2rem;">Loading telemetry records...</td></tr>
           </tbody>
         </table>
+        <div id="logsPagination" class="pagination-bar"></div>
 
       </div>
     </section>
@@ -201,6 +203,7 @@
             <tr><td colspan="8" class="text-center text-muted" style="padding: 2rem;">Loading daily shift summaries...</td></tr>
           </tbody>
         </table>
+        <div id="summariesPagination" class="pagination-bar"></div>
 
       </div>
     </section>
@@ -240,6 +243,7 @@
             <tr><td colspan="6" class="text-center text-muted" style="padding: 2rem;">Loading weekly summaries...</td></tr>
           </tbody>
         </table>
+        <div id="weeklyPagination" class="pagination-bar"></div>
 
       </div>
     </section>
@@ -273,6 +277,7 @@
             <tr><td colspan="6" class="text-center text-muted" style="padding: 2rem;">Loading monthly summaries...</td></tr>
           </tbody>
         </table>
+        <div id="monthlyPagination" class="pagination-bar"></div>
 
       </div>
     </section>
@@ -300,6 +305,7 @@
             <tr><td colspan="5" class="text-center text-muted" style="padding: 2rem;">Loading leave applications...</td></tr>
           </tbody>
         </table>
+        <div id="leavePagination" class="pagination-bar"></div>
 
       </div>
     </section>
@@ -326,6 +332,7 @@
             <tr><td colspan="4" class="text-center text-muted" style="padding: 2rem;">Loading employee directory...</td></tr>
           </tbody>
         </table>
+        <div id="usersPagination" class="pagination-bar"></div>
 
       </div>
     </section>
@@ -477,7 +484,7 @@
         <button type="button" class="modal-close" onclick="closeLeaveModal()" aria-label="Close modal">&times;</button>
       </div>
 
-      <form id="leaveForm" onsubmit="handleLeaveSubmit(event, function() { loadAdminDashboard(); })">
+      <form id="leaveForm" onsubmit="handleLeaveSubmit(event, function() { loadAdminDashboard('leaveTab'); })">
         <div class="modal-body">
           <div id="leaveModalAlert" class="alert hidden" role="alert"></div>
 
