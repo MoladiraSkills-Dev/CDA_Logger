@@ -9,7 +9,7 @@ const LOGIN_URL = "../index.html";
 let CURRENT_EMPLOYEE = null;
 let CURRENT_SHIFT_STATUS = null;
 
-document.addEventListener("DOMContentLoaded", function() {
+document.addEventListener("DOMContentLoaded", function () {
   // Enforce session presence & role
   const session = requireSession("Employee", LOGIN_URL);
   if (!session) return;
@@ -52,15 +52,23 @@ function fetchTodayShiftStatus() {
   if (!CURRENT_EMPLOYEE || !CURRENT_EMPLOYEE.email) return;
 
   google.script.run
-    .withFailureHandler(function(err) {
+    .withFailureHandler(function (err) {
       console.warn("Could not retrieve real-time shift status:", err);
     })
-    .withSuccessHandler(function(res) {
+    .withSuccessHandler(function (res) {
       if (res && res.status === "success" && res.todayShift) {
         updateEmployeeShiftUI(res.todayShift);
         updateSessionShift(res.todayShift);
-      }
-    })
+        if (res && res.status === "success") {
+          if (res.todayShift) {
+            updateEmployeeShiftUI(res.todayShift);
+            updateSessionShift(res.todayShift);
+          }
+          if (res.leaveInfo) {
+            updateEmployeeLeaveBadge(res.leaveInfo);
+          }
+        }
+      })
     .getTodayShiftStatus(CURRENT_EMPLOYEE.email);
 }
 
@@ -191,7 +199,7 @@ function initGeoStatusDisplay() {
   }
 
   if (navigator.permissions && navigator.permissions.query) {
-    navigator.permissions.query({ name: "geolocation" }).then(function(perm) {
+    navigator.permissions.query({ name: "geolocation" }).then(function (perm) {
       if (perm.state === "granted") {
         updateGeoStatus("ready", "GPS active & verified. Ready to record physical shift coordinates.");
       } else if (perm.state === "denied") {
@@ -200,10 +208,10 @@ function initGeoStatusDisplay() {
         updateGeoStatus("ready", "GPS reverse-geocoding actively verifies your physical shift location.");
       }
 
-      perm.onchange = function() {
+      perm.onchange = function () {
         initGeoStatusDisplay();
       };
-    }).catch(function() {
+    }).catch(function () {
       updateGeoStatus("ready", "GPS reverse-geocoding actively verifies your physical shift location.");
     });
   } else {
@@ -220,8 +228,8 @@ async function triggerClockAction(actionType) {
     const isClockedIn = CURRENT_SHIFT_STATUS && (CURRENT_SHIFT_STATUS.hasClockedIn || (CURRENT_SHIFT_STATUS.clockIn && CURRENT_SHIFT_STATUS.clockIn !== "--"));
     if (!isClockedIn) {
       showAlertUI(
-        alertBox, 
-        "Action Blocked: You cannot clock out because you have not clocked in for today yet. Please clock in first.", 
+        alertBox,
+        "Action Blocked: You cannot clock out because you have not clocked in for today yet. Please clock in first.",
         true
       );
       return;
@@ -253,12 +261,12 @@ async function triggerClockAction(actionType) {
     }
 
     google.script.run
-      .withFailureHandler(function(err) {
+      .withFailureHandler(function (err) {
         showLoader(false);
         updateGeoStatus("error", "Attendance Error: " + (err.message || err));
         showAlertUI(alertBox, "Attendance Error: " + err.message, true);
       })
-      .withSuccessHandler(function(res) {
+      .withSuccessHandler(function (res) {
         showLoader(false);
         if (res.status === "success") {
           const finalLocation = (res.location && !res.location.includes("Offline/Cached") && !res.location.includes("Unknown"))
@@ -270,11 +278,13 @@ async function triggerClockAction(actionType) {
           updateGeoStatus("locked", finalLocation, res.time);
 
           if (actionType === "Clock In") {
+            const floorInVal = res.floorIn || calculateFloorIn(res.time);
             const newShift = {
               date: res.date,
               clockIn: res.time,
               clockOut: "--",
               floorIn: res.time.substring(0, 5),
+              floorIn: floorInVal,
               floorOut: "--",
               status: "In Progress",
               hasClockedIn: true,
@@ -320,5 +330,54 @@ async function triggerClockAction(actionType) {
 function handleEmployeeLogout() {
   if (confirm("Are you sure you want to exit your active session?")) {
     logout(LOGIN_URL);
+  }
+}
+
+/**
+ * Calculates floor clock-in time client-side:
+ * Early clock-in (< 08:00) automatically sets to 08:00; past 08:00 shows actual time (HH:mm).
+ */
+function calculateFloorIn(timeStr) {
+  if (!timeStr || timeStr === "--") return "--";
+  const parts = String(timeStr).split(":");
+  if (parts.length >= 2) {
+    const hours = parseInt(parts[0], 10);
+    const mins = parseInt(parts[1], 10);
+    if (!isNaN(hours) && !isNaN(mins)) {
+      const totalMins = (hours * 60) + mins;
+      if (totalMins < 480) {
+        return "08:00";
+      }
+      return `${String(hours).padStart(2, '0')}:${String(mins).padStart(2, '0')}`;
+    }
+  }
+  return timeStr.substring(0, 5);
+}
+
+/**
+ * Updates the notification badge on the Leave Application trigger button
+ */
+function updateEmployeeLeaveBadge(leaveInfo) {
+  const badge = document.getElementById("employeeLeaveBadge");
+  if (!badge) return;
+
+  if (!leaveInfo) {
+    badge.classList.add("hidden");
+    return;
+  }
+
+  if (leaveInfo.activeLeaveType) {
+    badge.className = "leave-btn-badge badge-teal";
+    badge.innerText = `On Leave: ${leaveInfo.activeLeaveType}`;
+    badge.title = `You have an approved ${leaveInfo.activeLeaveType} leave active today`;
+    badge.classList.remove("hidden");
+  } else if (leaveInfo.pendingCount > 0) {
+    badge.className = "leave-btn-badge badge-warning";
+    badge.innerText = `${leaveInfo.pendingCount} Pending`;
+    badge.title = `You have ${leaveInfo.pendingCount} pending leave application${leaveInfo.pendingCount > 1 ? 's' : ''}`;
+    badge.classList.remove("hidden");
+  } else {
+    badge.innerText = "";
+    badge.classList.add("hidden");
   }
 }

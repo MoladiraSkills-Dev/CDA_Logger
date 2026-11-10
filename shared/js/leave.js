@@ -75,6 +75,11 @@ function handleLeaveSubmit(e, onSuccessCallback) {
         alert(res.message || "Leave request submitted successfully!");
         if (typeof onSuccessCallback === "function") {
           onSuccessCallback(res);
+        } else if (typeof updateEmployeeLeaveBadge === "function") {
+          updateEmployeeLeaveBadge({ pendingCount: 1 });
+        }
+        if (typeof loadAdminDashboard === "function") {
+          loadAdminDashboard('leaveTab');
         }
       } else {
         if (alertBox) {

@@ -261,3 +261,29 @@
   background-color: #dbeafe;
   border-color: var(--cda-blue);
 }
+
+.leave-btn-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.2rem 0.55rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  border-radius: var(--radius-full);
+  margin-left: auto;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+}
+
+.leave-btn-badge.badge-warning {
+  background-color: var(--cda-warning-light);
+  color: #92400e;
+  border: 1px solid #fde68a;
+}
+
+.leave-btn-badge.badge-teal {
+  background-color: var(--cda-teal-light);
+  color: #065f46;
+  border: 1px solid #99f6e4;
+}

@@ -1,14 +1,17 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="description" content="CDA Solutions Executive Attendance Dashboard - Manage company activity logs, daily summaries, legal compliance, leave requests and timesheet exports.">
+  <meta name="description"
+    content="CDA Solutions Executive Attendance Dashboard - Manage company activity logs, daily summaries, legal compliance, leave requests and timesheet exports.">
   <title>CDA Solutions - Executive Attendance Dashboard</title>
   <link rel="icon" href="https://www.cdasolutions.co.za/fav.png" type="image/x-icon">
   <link rel="stylesheet" href="../shared/css/base.css">
   <link rel="stylesheet" href="admin.css">
 </head>
+
 <body class="pattern-bg">
 
   <!-- GLOBAL LOADING SPINNER -->
@@ -29,7 +32,8 @@
       </div>
       <div class="brand-nav-actions">
         <span class="badge badge-purple">Executive Admin</span>
-        <button type="button" onclick="handleAdminLogout()" class="btn btn-outline btn-sm" style="color: #ffffff; border-color: rgba(255,255,255,0.25);">
+        <button type="button" onclick="handleAdminLogout()" class="btn btn-outline btn-sm"
+          style="color: #ffffff; border-color: rgba(255,255,255,0.25);">
           Sign Out
         </button>
       </div>
@@ -42,7 +46,8 @@
     <!-- TOP ACTION BAR -->
     <section class="admin-topbar">
       <div class="admin-heading-group">
-        <span class="badge badge-teal" style="width: fit-content; margin-bottom: 0.35rem;">Live Corporate Workspace</span>
+        <span class="badge badge-teal" style="width: fit-content; margin-bottom: 0.35rem;">Live Corporate
+          Workspace</span>
         <h1 id="adminGreeting" style="font-size: 1.5rem; color: var(--cda-navy);">
           Executive Dashboard
         </h1>
@@ -64,7 +69,8 @@
     </section>
 
     <!-- ADMIN SELF ATTENDANCE PANEL (Collapsible) -->
-    <section id="adminSelfClockPanel" class="admin-self-clock-card hidden" aria-label="Administrator attendance check-in">
+    <section id="adminSelfClockPanel" class="admin-self-clock-card hidden"
+      aria-label="Administrator attendance check-in">
       <div style="text-align: center; margin-bottom: 1rem;">
         <h2 style="font-size: 1.15rem; color: var(--cda-navy);">Admin Attendance Logging</h2>
         <p class="text-muted" style="font-size: 0.8rem; margin-top: 0.25rem;">
@@ -75,21 +81,28 @@
       <div id="adminLogAlert" class="alert hidden" role="alert"></div>
 
       <div class="admin-clock-grid">
-        <button type="button" id="btnAdminClockIn" onclick="triggerAdminClockAction('Clock In')" class="btn btn-secondary btn-lg">
+        <button type="button" id="btnAdminClockIn" onclick="triggerAdminClockAction('Clock In')"
+          class="btn btn-secondary btn-lg">
           <span>⏰</span>
           <span>Clock In</span>
         </button>
-        <button type="button" id="btnAdminClockOut" onclick="triggerAdminClockAction('Clock Out')" class="btn btn-orange btn-lg" disabled title="You cannot clock out until you have clocked in for today">
+        <button type="button" id="btnAdminClockOut" onclick="triggerAdminClockAction('Clock Out')"
+          class="btn btn-orange btn-lg" disabled title="You cannot clock out until you have clocked in for today">
           <span>🚪</span>
           <span>Clock Out</span>
         </button>
       </div>
-      <p id="adminClockStatusHint" class="text-muted" style="font-size: 0.75rem; text-align: center; margin-top: 0.5rem; margin-bottom: 0.75rem;">Clock in first to enable clock out</p>
+      <p id="adminClockStatusHint" class="text-muted"
+        style="font-size: 0.75rem; text-align: center; margin-top: 0.5rem; margin-bottom: 0.75rem;">Clock in first to
+        enable clock out</p>
 
       <button type="button" onclick="openLeaveModal()" class="btn btn-outline btn-block btn-sm">
-        <span>📅</span>
-        <span>Register Admin Leave</span>
-      </button>
+        <button type="button" onclick="openLeaveModal()" class="btn btn-outline btn-block btn-sm"
+          style="display: flex; align-items: center; justify-content: center; gap: 0.5rem;">
+          <span>📅</span>
+          <span>Register Admin Leave</span>
+          <span id="adminHeaderLeaveBadge" class="nav-tab-badge hidden">0</span>
+        </button>
     </section>
 
     <!-- NAVIGATION TABS -->
@@ -108,6 +121,8 @@
       </button>
       <button type="button" onclick="switchAdminTab('leaveTab')" id="btn-leaveTab" class="tab-btn" role="tab">
         Leave Requests
+        <span>Leave Requests</span>
+        <span id="leaveTabBadge" class="nav-tab-badge hidden">0</span>
       </button>
       <button type="button" onclick="switchAdminTab('usersTab')" id="btn-usersTab" class="tab-btn" role="tab">
         Staff Directory
@@ -120,11 +135,11 @@
     <!-- TAB 1: ACTIVITY LOGS & LIVE TELEMETRY COUNTER -->
     <section id="content-logsTab" class="tab-content-panel active" role="tabpanel">
       <div class="table-container">
-        
+
         <div class="table-toolbar">
           <div style="display: flex; align-items: center; gap: 1rem; flex-wrap: wrap;">
             <h2 style="font-size: 1rem; color: var(--cda-navy);">Telemetry Activity Logs</h2>
-            
+
             <!-- Live Login/Logout Status Pill -->
             <div class="stat-counters-widget">
               <div class="stat-item">
@@ -143,8 +158,11 @@
           </div>
 
           <div class="toolbar-controls">
-            <input type="date" id="filterDate" onchange="applyAdminLogFilters()" class="form-control" style="width: auto; padding: 0.45rem 0.75rem; font-size: 0.8rem;">
-            <input type="text" id="filterSearch" oninput="applyAdminLogFilters()" placeholder="Filter by staff name/email..." class="form-control" style="width: 220px; padding: 0.45rem 0.75rem; font-size: 0.8rem;">
+            <input type="date" id="filterDate" onchange="applyAdminLogFilters()" class="form-control"
+              style="width: auto; padding: 0.45rem 0.75rem; font-size: 0.8rem;">
+            <input type="text" id="filterSearch" oninput="applyAdminLogFilters()"
+              placeholder="Filter by staff name/email..." class="form-control"
+              style="width: 220px; padding: 0.45rem 0.75rem; font-size: 0.8rem;">
             <button type="button" onclick="resetAdminLogFilters()" class="btn btn-outline btn-sm">Reset</button>
           </div>
         </div>
@@ -160,7 +178,9 @@
             </tr>
           </thead>
           <tbody id="logsTableBody">
-            <tr><td colspan="5" class="text-center text-muted" style="padding: 2rem;">Loading telemetry records...</td></tr>
+            <tr>
+              <td colspan="5" class="text-center text-muted" style="padding: 2rem;">Loading telemetry records...</td>
+            </tr>
           </tbody>
         </table>
         <div id="logsPagination" class="pagination-bar"></div>
@@ -171,16 +191,20 @@
     <!-- TAB 2: DAILY SUMMARIES -->
     <section id="content-summariesTab" class="tab-content-panel" role="tabpanel">
       <div class="table-container">
-        
+
         <div class="table-toolbar">
           <div>
             <h2 style="font-size: 1rem; color: var(--cda-navy);">Daily Shift Summaries</h2>
-            <p class="text-muted" style="font-size: 0.75rem;">Standard Floor End: 17:00 (Mon-Fri) / 13:00 (Sat). 1-hour lunch deducted for shifts &gt; 1h.</p>
+            <p class="text-muted" style="font-size: 0.75rem;">Standard Floor End: 17:00 (Mon-Fri) / 13:00 (Sat). 1-hour
+              lunch deducted for shifts &gt; 1h.</p>
           </div>
 
           <div class="toolbar-controls">
-            <input type="date" id="filterSummaryDate" onchange="applyAdminSummaryFilters()" class="form-control" style="width: auto; padding: 0.45rem 0.75rem; font-size: 0.8rem;">
-            <input type="text" id="filterSummarySearch" oninput="applyAdminSummaryFilters()" placeholder="Search staff name/email..." class="form-control" style="width: 220px; padding: 0.45rem 0.75rem; font-size: 0.8rem;">
+            <input type="date" id="filterSummaryDate" onchange="applyAdminSummaryFilters()" class="form-control"
+              style="width: auto; padding: 0.45rem 0.75rem; font-size: 0.8rem;">
+            <input type="text" id="filterSummarySearch" oninput="applyAdminSummaryFilters()"
+              placeholder="Search staff name/email..." class="form-control"
+              style="width: 220px; padding: 0.45rem 0.75rem; font-size: 0.8rem;">
             <button type="button" onclick="resetAdminSummaryFilters()" class="btn btn-outline btn-sm">Reset</button>
           </div>
         </div>
@@ -199,7 +223,10 @@
             </tr>
           </thead>
           <tbody id="summariesTableBody">
-            <tr><td colspan="8" class="text-center text-muted" style="padding: 2rem;">Loading daily shift summaries...</td></tr>
+            <tr>
+              <td colspan="8" class="text-center text-muted" style="padding: 2rem;">Loading daily shift summaries...
+              </td>
+            </tr>
           </tbody>
         </table>
         <div id="summariesPagination" class="pagination-bar"></div>
@@ -210,7 +237,7 @@
     <!-- TAB 3: WEEKLY SUMMARIES & LEGAL COMPLIANCE -->
     <section id="content-weeklyTab" class="tab-content-panel" role="tabpanel">
       <div class="table-container">
-        
+
         <div class="table-toolbar">
           <div>
             <h2 style="font-size: 1rem; color: var(--cda-navy);">Weekly Work Summaries &amp; Legal Compliance</h2>
@@ -221,8 +248,11 @@
           </div>
 
           <div class="toolbar-controls">
-            <input type="text" id="filterWeeklyKey" oninput="applyAdminWeeklyFilters()" placeholder="Week e.g. 2026-W42" class="form-control" style="width: 170px; padding: 0.45rem 0.75rem; font-size: 0.8rem;">
-            <input type="text" id="filterWeeklySearch" oninput="applyAdminWeeklyFilters()" placeholder="Filter staff name/email..." class="form-control" style="width: 220px; padding: 0.45rem 0.75rem; font-size: 0.8rem;">
+            <input type="text" id="filterWeeklyKey" oninput="applyAdminWeeklyFilters()" placeholder="Week e.g. 2026-W42"
+              class="form-control" style="width: 170px; padding: 0.45rem 0.75rem; font-size: 0.8rem;">
+            <input type="text" id="filterWeeklySearch" oninput="applyAdminWeeklyFilters()"
+              placeholder="Filter staff name/email..." class="form-control"
+              style="width: 220px; padding: 0.45rem 0.75rem; font-size: 0.8rem;">
             <button type="button" onclick="resetAdminWeeklyFilters()" class="btn btn-outline btn-sm">Reset</button>
           </div>
         </div>
@@ -239,7 +269,9 @@
             </tr>
           </thead>
           <tbody id="weeklyTableBody">
-            <tr><td colspan="6" class="text-center text-muted" style="padding: 2rem;">Loading weekly summaries...</td></tr>
+            <tr>
+              <td colspan="6" class="text-center text-muted" style="padding: 2rem;">Loading weekly summaries...</td>
+            </tr>
           </tbody>
         </table>
         <div id="weeklyPagination" class="pagination-bar"></div>
@@ -250,13 +282,16 @@
     <!-- TAB 4: MONTHLY SUMMARIES -->
     <section id="content-monthlyTab" class="tab-content-panel" role="tabpanel">
       <div class="table-container">
-        
+
         <div class="table-toolbar">
           <h2 style="font-size: 1rem; color: var(--cda-navy);">Month-to-Date Accumulated Summaries</h2>
 
           <div class="toolbar-controls">
-            <input type="month" id="filterMonthlyMonth" onchange="applyAdminMonthlyFilters()" class="form-control" style="width: auto; padding: 0.45rem 0.75rem; font-size: 0.8rem;">
-            <input type="text" id="filterMonthlySearch" oninput="applyAdminMonthlyFilters()" placeholder="Filter staff name/email..." class="form-control" style="width: 220px; padding: 0.45rem 0.75rem; font-size: 0.8rem;">
+            <input type="month" id="filterMonthlyMonth" onchange="applyAdminMonthlyFilters()" class="form-control"
+              style="width: auto; padding: 0.45rem 0.75rem; font-size: 0.8rem;">
+            <input type="text" id="filterMonthlySearch" oninput="applyAdminMonthlyFilters()"
+              placeholder="Filter staff name/email..." class="form-control"
+              style="width: 220px; padding: 0.45rem 0.75rem; font-size: 0.8rem;">
             <button type="button" onclick="resetAdminMonthlyFilters()" class="btn btn-outline btn-sm">Reset</button>
           </div>
         </div>
@@ -273,7 +308,9 @@
             </tr>
           </thead>
           <tbody id="monthlyTableBody">
-            <tr><td colspan="6" class="text-center text-muted" style="padding: 2rem;">Loading monthly summaries...</td></tr>
+            <tr>
+              <td colspan="6" class="text-center text-muted" style="padding: 2rem;">Loading monthly summaries...</td>
+            </tr>
           </tbody>
         </table>
         <div id="monthlyPagination" class="pagination-bar"></div>
@@ -284,7 +321,7 @@
     <!-- TAB 5: LEAVE REQUESTS APPROVAL TABLE -->
     <section id="content-leaveTab" class="tab-content-panel" role="tabpanel">
       <div class="table-container">
-        
+
         <div class="table-toolbar">
           <h2 style="font-size: 1rem; color: var(--cda-navy);">Employee Leave Applications</h2>
           <p class="text-muted" style="font-size: 0.8rem;">Review and decide employee leave requests.</p>
@@ -301,7 +338,9 @@
             </tr>
           </thead>
           <tbody id="leaveTableBody">
-            <tr><td colspan="5" class="text-center text-muted" style="padding: 2rem;">Loading leave applications...</td></tr>
+            <tr>
+              <td colspan="5" class="text-center text-muted" style="padding: 2rem;">Loading leave applications...</td>
+            </tr>
           </tbody>
         </table>
         <div id="leavePagination" class="pagination-bar"></div>
@@ -312,10 +351,11 @@
     <!-- TAB 6: STAFF DIRECTORY & PROFILES -->
     <section id="content-usersTab" class="tab-content-panel" role="tabpanel">
       <div class="table-container">
-        
+
         <div class="table-toolbar">
           <h2 style="font-size: 1rem; color: var(--cda-navy);">Employee Directory Profiles</h2>
-          <p class="text-muted" style="font-size: 0.8rem;">Manage employee names, block/verify standing, and reset security credentials.</p>
+          <p class="text-muted" style="font-size: 0.8rem;">Manage employee names, block/verify standing, and reset
+            security credentials.</p>
         </div>
 
         <table class="table" aria-label="Staff directory table">
@@ -328,7 +368,9 @@
             </tr>
           </thead>
           <tbody id="usersTableBody">
-            <tr><td colspan="4" class="text-center text-muted" style="padding: 2rem;">Loading employee directory...</td></tr>
+            <tr>
+              <td colspan="4" class="text-center text-muted" style="padding: 2rem;">Loading employee directory...</td>
+            </tr>
           </tbody>
         </table>
         <div id="usersPagination" class="pagination-bar"></div>
@@ -339,7 +381,7 @@
     <!-- TAB 7: TIMESHEET EXPORTS -->
     <section id="content-exportTab" class="tab-content-panel" role="tabpanel">
       <article class="export-panel-card">
-        
+
         <header style="margin-bottom: 1.5rem; border-bottom: 1px solid var(--cda-slate-200); padding-bottom: 1rem;">
           <h2 style="font-size: 1.25rem; color: var(--cda-navy);">Timesheet Export Engine</h2>
           <p class="text-muted" style="font-size: 0.85rem; margin-top: 0.25rem;">
@@ -391,22 +433,26 @@
   </main>
 
   <!-- EDIT DAILY SHIFT SUMMARY MODAL -->
-  <div id="editSummaryModal" class="modal-backdrop hidden" role="dialog" aria-labelledby="editSumTitle" aria-modal="true">
+  <div id="editSummaryModal" class="modal-backdrop hidden" role="dialog" aria-labelledby="editSumTitle"
+    aria-modal="true">
     <div class="modal-dialog">
       <div class="modal-header">
         <h3 id="editSumTitle">⏱️ Modify Shift Timestamps</h3>
-        <button type="button" class="modal-close" onclick="closeSummaryEditModal()" aria-label="Close modal">&times;</button>
+        <button type="button" class="modal-close" onclick="closeSummaryEditModal()"
+          aria-label="Close modal">&times;</button>
       </div>
 
       <form onsubmit="handleSummaryUpdateSave(event)">
         <div class="modal-body">
           <input type="hidden" id="editSumId">
 
-          <div style="background-color: var(--cda-slate-50); padding: 0.875rem 1rem; border-radius: var(--radius-md); border: 1px solid var(--cda-slate-200); margin-bottom: 1.25rem;">
+          <div
+            style="background-color: var(--cda-slate-50); padding: 0.875rem 1rem; border-radius: var(--radius-md); border: 1px solid var(--cda-slate-200); margin-bottom: 1.25rem;">
             <strong id="editSumName" style="color: var(--cda-navy); display: block;"></strong>
             <span id="editSumDate" class="text-muted" style="font-size: 0.8rem; display: block;"></span>
             <p style="font-size: 0.725rem; color: var(--cda-slate-500); margin-top: 0.35rem;">
-              Admin edits set custom clock-in/out bounds, award overtime beyond 17:00, and re-sync weekly and monthly totals.
+              Admin edits set custom clock-in/out bounds, award overtime beyond 17:00, and re-sync weekly and monthly
+              totals.
             </p>
           </div>
 
@@ -463,7 +509,8 @@
 
           <div class="form-group">
             <label class="form-label" for="editPassword">Reset Security Password</label>
-            <input type="password" id="editPassword" class="form-control" placeholder="Leave blank to retain current password">
+            <input type="password" id="editPassword" class="form-control"
+              placeholder="Leave blank to retain current password">
           </div>
         </div>
 
@@ -522,4 +569,5 @@
   <script src="../shared/js/leave.js"></script>
   <script src="admin.js"></script>
 </body>
+
 </html>

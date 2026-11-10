@@ -276,3 +276,29 @@
 @keyframes inlineSpin {
   to { transform: rotate(360deg); }
 }
+
+/* Navigation Tab Notification Badge */
+.nav-tab-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.25rem;
+  height: 1.25rem;
+  padding: 0 0.4rem;
+  font-size: 0.7rem;
+  font-weight: 800;
+  line-height: 1;
+  border-radius: var(--radius-full);
+  background-color: var(--cda-orange);
+  color: #ffffff;
+  margin-left: 0.45rem;
+  vertical-align: middle;
+  box-shadow: 0 1px 4px rgba(249, 115, 22, 0.35);
+  transition: var(--transition);
+}
+
+.tab-btn.active .nav-tab-badge {
+  background-color: #ffffff;
+  color: var(--cda-blue-dark);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}

@@ -89,6 +89,10 @@ function loadAdminDashboard(targetTab = null) {
         CACHED_EMPLOYEES_ARRAY = res.employees || [];
         LOADED_TABS['logsTab'] = true;
 
+        if (typeof res.pendingLeaveCount === "number") {
+          updateLeaveBadge(res.pendingLeaveCount);
+        }
+
         if (res.dailyStats) {
           const statLogins = document.getElementById("statLogins");
           const statLogouts = document.getElementById("statLogouts");
@@ -1036,15 +1040,38 @@ function renderMonthlyTable(monthlyData) {
 /**
  * TAB 5: LEAVE REQUESTS APPROVALS
  */
+function updateLeaveBadge(pendingCount) {
+  const badge = document.getElementById("leaveTabBadge");
+  const headerBadge = document.getElementById("adminHeaderLeaveBadge");
+  const count = typeof pendingCount === "number" ? pendingCount : 0;
+  
+  [badge, headerBadge].forEach(el => {
+    if (!el) return;
+    if (count > 0) {
+      el.innerText = count;
+      el.classList.remove("hidden");
+      el.title = `${count} pending leave application${count > 1 ? 's' : ''}`;
+    } else {
+      el.innerText = "0";
+      el.classList.add("hidden");
+      el.title = "";
+    }
+  });
+}
+
 function renderLeaveRequestsTable(requests) {
   const tbody = document.getElementById("leaveTableBody");
   if (!tbody) return;
 
   if (!requests || requests.length === 0) {
+    updateLeaveBadge(0);
     tbody.innerHTML = `<tr><td colspan="5" class="text-center text-muted" style="padding: 2rem;">No leave applications on record.</td></tr>`;
     renderPaginationBar("leavePagination", 0, TAB_PAGE_LIMITS.leave, "loadMoreLeave", "showAllLeave", "resetLeavePagination");
     return;
   }
+
+  const pendingCount = (requests || []).filter(r => String(r.status || "").toLowerCase() === "pending").length;
+  updateLeaveBadge(pendingCount);
 
   const visibleSlice = requests.slice(0, TAB_PAGE_LIMITS.leave);
 
