@@ -33,9 +33,26 @@ document.addEventListener("DOMContentLoaded", function () {
     avatarEl.innerText = `${fInitial}${lInitial}`;
   }
 
-  // Restore cached shift status if present
-  if (session.todayShift) {
+  // Restore cached shift status ONLY if it matches today's date
+  const localToday = new Date();
+  const todayStr = `${localToday.getFullYear()}-${String(localToday.getMonth() + 1).padStart(2, '0')}-${String(localToday.getDate()).padStart(2, '0')}`;
+
+  if (session.todayShift && session.todayShift.date === todayStr) {
     updateEmployeeShiftUI(session.todayShift);
+  } else {
+    // Clear stale shift from a previous day to prevent false "Shift completed" lock
+    updateSessionShift(null);
+    updateEmployeeShiftUI({
+      date: todayStr,
+      clockIn: "--",
+      clockOut: "--",
+      floorIn: "--",
+      floorOut: "--",
+      totalHours: "--",
+      status: "Not Started",
+      hasClockedIn: false,
+      hasClockedOut: false
+    });
   }
 
   // Synchronize live shift status from backend
@@ -56,19 +73,16 @@ function fetchTodayShiftStatus() {
       console.warn("Could not retrieve real-time shift status:", err);
     })
     .withSuccessHandler(function (res) {
-      if (res && res.status === "success" && res.todayShift) {
-        updateEmployeeShiftUI(res.todayShift);
-        updateSessionShift(res.todayShift);
-        if (res && res.status === "success") {
-          if (res.todayShift) {
-            updateEmployeeShiftUI(res.todayShift);
-            updateSessionShift(res.todayShift);
-          }
-          if (res.leaveInfo) {
-            updateEmployeeLeaveBadge(res.leaveInfo);
-          }
+      if (res && res.status === "success") {
+        if (res.todayShift) {
+          updateEmployeeShiftUI(res.todayShift);
+          updateSessionShift(res.todayShift);
         }
-      })
+        if (res.leaveInfo) {
+          updateEmployeeLeaveBadge(res.leaveInfo);
+        }
+      }
+    })
     .getTodayShiftStatus(CURRENT_EMPLOYEE.email);
 }
 
@@ -236,95 +250,107 @@ async function triggerClockAction(actionType) {
     }
   }
 
-  if (!navigator.geolocation) {
-    updateGeoStatus("error", "Geolocation is not supported by your current browser device.");
-    showAlertUI(alertBox, "Geolocation is not supported by your current browser device.", true);
-    return;
-  }
+  // Attempt Geolocation acquisition with graceful fallback for desktop/timeout/denied
+  let lat = "0";
+  let lon = "0";
+  let resolvedAddress = "Location Unavailable (GPS Off/Desktop)";
 
-  updateGeoStatus("acquiring", `Querying GPS coordinates for ${actionType}...`);
-  showLoader(true, `Querying GPS coordinates for ${actionType}...`);
+  if (navigator.geolocation) {
+    updateGeoStatus("acquiring", `Querying GPS coordinates for ${actionType}...`);
+    showLoader(true, `Querying GPS coordinates for ${actionType}...`);
 
-  try {
-    const pos = await getCurrentCoordinates();
-    const lat = pos.coords.latitude;
-    const lon = pos.coords.longitude;
-
-    updateGeoStatus("resolving", `Resolving physical street address via LocationIQ...`);
-    showLoader(true, `Resolving physical location & logging ${actionType}...`);
-
-    let resolvedAddress = "";
     try {
-      resolvedAddress = await resolveGeolocationAddress(lat, lon);
-    } catch (e) {
-      resolvedAddress = `GPS: ${lat.toFixed(4)}, ${lon.toFixed(4)}`;
+      const pos = await getCurrentCoordinates({ highAccuracyTimeout: 6000, standardTimeout: 8000 });
+      lat = String(pos.coords.latitude);
+      lon = String(pos.coords.longitude);
+
+      updateGeoStatus("resolving", `Resolving physical street address...`);
+      showLoader(true, `Resolving physical location & logging ${actionType}...`);
+
+      try {
+        resolvedAddress = await resolveGeolocationAddress(lat, lon);
+      } catch (e) {
+        resolvedAddress = `GPS: ${Number(lat).toFixed(4)}, ${Number(lon).toFixed(4)}`;
+      }
+    } catch (geoErr) {
+      console.warn("GPS resolution could not complete:", geoErr);
+      let reason = "Location unavailable";
+      if (geoErr && geoErr.code === 1) reason = "Location access denied";
+      else if (geoErr && geoErr.code === 2) reason = "GPS position unavailable";
+      else if (geoErr && geoErr.code === 3) reason = "GPS request timed out";
+
+      resolvedAddress = `Unverified Location (${reason})`;
+      updateGeoStatus("error", `GPS note: ${reason}. Continuing shift record.`);
     }
-
-    google.script.run
-      .withFailureHandler(function (err) {
-        showLoader(false);
-        updateGeoStatus("error", "Attendance Error: " + (err.message || err));
-        showAlertUI(alertBox, "Attendance Error: " + err.message, true);
-      })
-      .withSuccessHandler(function (res) {
-        showLoader(false);
-        if (res.status === "success") {
-          const finalLocation = (res.location && !res.location.includes("Offline/Cached") && !res.location.includes("Unknown"))
-            ? res.location
-            : resolvedAddress;
-
-          const feedback = `${res.action} confirmed at ${res.time} (${finalLocation})`;
-          showAlertUI(alertBox, feedback, false);
-          updateGeoStatus("locked", finalLocation, res.time);
-
-          if (actionType === "Clock In") {
-            const floorInVal = res.floorIn || calculateFloorIn(res.time);
-            const newShift = {
-              date: res.date,
-              clockIn: res.time,
-              clockOut: "--",
-              floorIn: res.time.substring(0, 5),
-              floorIn: floorInVal,
-              floorOut: "--",
-              status: "In Progress",
-              hasClockedIn: true,
-              hasClockedOut: false,
-              location: finalLocation
-            };
-            updateEmployeeShiftUI(newShift);
-            updateSessionShift(newShift);
-          } else if (actionType === "Clock Out") {
-            const updatedShift = CURRENT_SHIFT_STATUS || {};
-            updatedShift.hasClockedOut = true;
-            updatedShift.clockOut = res.time;
-            updatedShift.status = "Completed";
-            updatedShift.location = finalLocation;
-            updateEmployeeShiftUI(updatedShift);
-            updateSessionShift(updatedShift);
-          }
-        } else {
-          updateGeoStatus("error", res.message || "Failed to record attendance action.");
-          showAlertUI(alertBox, res.message || "Failed to record attendance action.", true);
-        }
-      })
-      .processActivityLog(
-        CURRENT_EMPLOYEE.email,
-        CURRENT_EMPLOYEE.firstName,
-        CURRENT_EMPLOYEE.lastName,
-        actionType,
-        lat,
-        lon,
-        resolvedAddress
-      );
-
-  } catch (err) {
-    showLoader(false);
-    let errMsg = "GPS blocked: Please enable device location permissions in your browser.";
-    if (err.code === 2) errMsg = "Location unavailable. Please check your network or GPS connection.";
-    if (err.code === 3) errMsg = "Location request timed out. Please try again.";
-    updateGeoStatus("error", errMsg);
-    showAlertUI(alertBox, errMsg, true);
+  } else {
+    updateGeoStatus("error", "Geolocation not supported by device. Continuing shift record.");
   }
+
+  showLoader(true, `Recording ${actionType} with CDA Solutions...`);
+
+  google.script.run
+    .withFailureHandler(function (err) {
+      showLoader(false);
+      updateGeoStatus("error", "Attendance Error: " + (err.message || err));
+      showAlertUI(alertBox, "Attendance Error: " + (err.message || err), true);
+    })
+    .withSuccessHandler(function (res) {
+      showLoader(false);
+      if (res && res.status === "success") {
+        const finalLocation = (res.location && !res.location.includes("Offline/Cached") && !res.location.includes("Unknown"))
+          ? res.location
+          : resolvedAddress;
+
+        const feedback = `${res.action} confirmed at ${res.time} (${finalLocation})`;
+        showAlertUI(alertBox, feedback, false);
+        updateGeoStatus("locked", finalLocation, res.time);
+
+        if (actionType === "Clock In") {
+          const floorInVal = res.floorIn || calculateFloorIn(res.time);
+          const newShift = {
+            date: res.date,
+            clockIn: res.time,
+            clockOut: "--",
+            floorIn: floorInVal,
+            floorOut: "--",
+            status: "In Progress",
+            hasClockedIn: true,
+            hasClockedOut: false,
+            location: finalLocation
+          };
+          updateEmployeeShiftUI(newShift);
+          updateSessionShift(newShift);
+          // Sync with backend
+          fetchTodayShiftStatus();
+        } else if (actionType === "Clock Out") {
+          const updatedShift = CURRENT_SHIFT_STATUS || {};
+          updatedShift.hasClockedOut = true;
+          updatedShift.clockOut = res.time;
+          updatedShift.floorIn = res.floorIn || updatedShift.floorIn || "--";
+          updatedShift.floorOut = res.floorOut || updatedShift.floorOut || "--";
+          updatedShift.totalHours = res.totalHours || updatedShift.totalHours || "--";
+          updatedShift.status = "Completed";
+          updatedShift.location = finalLocation;
+          updateEmployeeShiftUI(updatedShift);
+          updateSessionShift(updatedShift);
+          // Sync with backend to reflect finalized hours/floor
+          fetchTodayShiftStatus();
+        }
+      } else {
+        const errorMsg = (res && res.message) ? res.message : "Failed to record attendance action.";
+        updateGeoStatus("error", errorMsg);
+        showAlertUI(alertBox, errorMsg, true);
+      }
+    })
+    .processActivityLog(
+      CURRENT_EMPLOYEE.email,
+      CURRENT_EMPLOYEE.firstName,
+      CURRENT_EMPLOYEE.lastName,
+      actionType,
+      lat,
+      lon,
+      resolvedAddress
+    );
 }
 
 function handleEmployeeLogout() {
