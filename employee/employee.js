@@ -361,7 +361,7 @@ function handleEmployeeLogout() {
 
 /**
  * Calculates floor clock-in time client-side:
- * Early clock-in (< 08:00) automatically sets to 08:00; past 08:00 shows actual time (HH:mm).
+ * Morning clock-in (< 12:00 PM) automatically sets morning floor time to 08:00; afternoon shows actual time (HH:mm).
  */
 function calculateFloorIn(timeStr) {
   if (!timeStr || timeStr === "--") return "--";
@@ -371,13 +371,13 @@ function calculateFloorIn(timeStr) {
     const mins = parseInt(parts[1], 10);
     if (!isNaN(hours) && !isNaN(mins)) {
       const totalMins = (hours * 60) + mins;
-      if (totalMins < 480) {
+      if (totalMins < 720) {
         return "08:00";
       }
       return `${String(hours).padStart(2, '0')}:${String(mins).padStart(2, '0')}`;
     }
   }
-  return timeStr.substring(0, 5);
+  return "08:00";
 }
 
 /**
