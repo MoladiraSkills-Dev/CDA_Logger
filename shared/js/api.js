@@ -68,7 +68,7 @@ const METHOD_ARG_MAPS = {
   submitLeaveRequest: ["email", "firstName", "lastName", "leaveType", "startDate", "endDate"],
   adminUpdateLeaveStatus: ["reqId", "newStatus"],
   exportTimesheetData: ["email", "startDate", "endDate", "format"],
-  generateTimesheetsZip: ["email", "startDate", "endDate"],
+  generateTimesheetsZip: ["email", "startDate", "endDate", "format"],
   extractExistingLogsToDailySummaries: [],
   resetClockOutFloorTimes: [],
   reResolveHistoricalLogLocations: [],

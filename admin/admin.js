@@ -1249,7 +1249,7 @@ function handleExport(format) {
   const alertBox = document.getElementById("exportAlert");
 
   if (email === "ALL") {
-    showAlertUI(alertBox, "PDF and CSV exports require a single employee selection. For all employees, click 'Export Timesheets (.zip)'.", true);
+    showAlertUI(alertBox, "PDF, Word, and CSV exports require a single employee selection. For all employees, click 'Export All (PDF .zip)' or 'Export All (Word .zip)'.", true);
     return;
   }
 
@@ -1263,8 +1263,9 @@ function handleExport(format) {
     return;
   }
 
+  const formatLabel = format === 'word' || format === 'doc' ? 'Word' : format.toUpperCase();
   if (alertBox) alertBox.classList.add("hidden");
-  showLoader(true, `Generating standardized ${format.toUpperCase()} timesheet...`);
+  showLoader(true, `Generating standardized ${formatLabel} timesheet...`);
 
   google.script.run
     .withFailureHandler(function(err) {
@@ -1275,7 +1276,7 @@ function handleExport(format) {
       showLoader(false);
       if (res.status === "success") {
         triggerNativeDownload(res.base64, res.mimeType, res.filename);
-        showAlertUI(alertBox, `${format.toUpperCase()} Timesheet successfully compiled and downloaded.`, false);
+        showAlertUI(alertBox, `${formatLabel} Timesheet successfully compiled and downloaded.`, false);
       } else {
         showAlertUI(alertBox, "Export Error: " + res.message, true);
       }
@@ -1283,15 +1284,21 @@ function handleExport(format) {
     .exportTimesheetData(email, startDate, endDate, format);
 }
 
-function requestZipExport() {
+function requestZipExport(format = 'pdf') {
   const email = document.getElementById("exportEmail").value;
   const startDate = document.getElementById("exportStart").value;
   const endDate = document.getElementById("exportEnd").value;
   const alertBox = document.getElementById("exportAlert");
 
-  const btn = document.getElementById("btnDownloadZip");
-  const spinner = document.getElementById("spinnerZip");
-  const text = document.getElementById("textZip");
+  const isWord = (format === 'word' || format === 'doc');
+  const btnId = isWord ? "btnDownloadWordZip" : "btnDownloadZip";
+  const spinnerId = isWord ? "spinnerWordZip" : "spinnerZip";
+  const textId = isWord ? "textWordZip" : "textZip";
+  const label = isWord ? "Word" : "PDF";
+
+  const btn = document.getElementById(btnId);
+  const spinner = document.getElementById(spinnerId);
+  const text = document.getElementById(textId);
 
   if (!startDate || !endDate) {
     showAlertUI(alertBox, "Please select both a Start Date and an End Date.", true);
@@ -1306,33 +1313,40 @@ function requestZipExport() {
   if (alertBox) alertBox.classList.add("hidden");
   if (btn) btn.classList.add("disabled");
   if (spinner) spinner.classList.remove("hidden");
-  if (text) text.innerText = "Compiling Archive...";
+  if (text) text.innerText = `Compiling ${label} Archive...`;
 
   google.script.run
     .withFailureHandler(function(err) {
-      resetZipButton();
-      showAlertUI(alertBox, "ZIP Export Error: " + err.message, true);
+      resetZipButton(format);
+      showAlertUI(alertBox, `${label} ZIP Export Error: ` + err.message, true);
     })
     .withSuccessHandler(function(res) {
-      resetZipButton();
+      resetZipButton(format);
       if (res.status === "success") {
         triggerNativeDownload(res.base64, res.mimeType, res.filename);
-        showAlertUI(alertBox, "ZIP Archive generated and downloaded successfully.", false);
+        showAlertUI(alertBox, `${label} ZIP Archive generated and downloaded successfully.`, false);
       } else {
         showAlertUI(alertBox, "Export Error: " + res.message, true);
       }
     })
-    .generateTimesheetsZip(email, startDate, endDate);
+    .generateTimesheetsZip(email, startDate, endDate, format);
 }
 
-function resetZipButton() {
-  const btn = document.getElementById("btnDownloadZip");
-  const spinner = document.getElementById("spinnerZip");
-  const text = document.getElementById("textZip");
+function resetZipButton(format = 'pdf') {
+  const isWord = (format === 'word' || format === 'doc');
+  const btnId = isWord ? "btnDownloadWordZip" : "btnDownloadZip";
+  const spinnerId = isWord ? "spinnerWordZip" : "spinnerZip";
+  const textId = isWord ? "textWordZip" : "textZip";
+
+  const btn = document.getElementById(btnId);
+  const spinner = document.getElementById(spinnerId);
+  const text = document.getElementById(textId);
 
   if (btn) btn.classList.remove("disabled");
   if (spinner) spinner.classList.add("hidden");
-  if (text) text.innerText = "Export Timesheets (.zip)";
+  if (text) {
+    text.innerText = isWord ? "📦 Export All (Word .zip)" : "📦 Export All (PDF .zip)";
+  }
 }
 
 function handleAdminLogout() {

@@ -416,13 +416,21 @@
               <span>📄</span>
               <span>Export Timesheet (PDF)</span>
             </button>
+            <button type="button" id="btnExportWord" onclick="handleExport('word')" class="btn btn-primary" style="background: linear-gradient(135deg, #185abd 0%, #0f4494 100%); border-color: #0f4494;">
+              <span>📝</span>
+              <span>Export Timesheet (Word)</span>
+            </button>
             <button type="button" id="btnExportCsv" onclick="handleExport('csv')" class="btn btn-outline">
               <span>📊</span>
               <span>Export Timesheet (CSV)</span>
             </button>
-            <button type="button" id="btnDownloadZip" onclick="requestZipExport()" class="btn btn-secondary">
+            <button type="button" id="btnDownloadZip" onclick="requestZipExport('pdf')" class="btn btn-secondary">
               <span id="spinnerZip" class="spinner hidden" style="width: 16px; height: 16px; border-width: 2px;"></span>
-              <span id="textZip">📦 Export All Timesheets (.zip)</span>
+              <span id="textZip">📦 Export All (PDF .zip)</span>
+            </button>
+            <button type="button" id="btnDownloadWordZip" onclick="requestZipExport('word')" class="btn btn-secondary" style="background: #185abd; color: #ffffff; border-color: #0f4494;">
+              <span id="spinnerWordZip" class="spinner hidden" style="width: 16px; height: 16px; border-width: 2px;"></span>
+              <span id="textWordZip">📦 Export All (Word .zip)</span>
             </button>
           </div>
         </form>
