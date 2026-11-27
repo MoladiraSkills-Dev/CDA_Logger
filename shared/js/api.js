@@ -67,6 +67,8 @@ const METHOD_ARG_MAPS = {
   adminUpdateUser: ["targetEmail", "firstName", "lastName", "status", "newPassword"],
   submitLeaveRequest: ["email", "firstName", "lastName", "leaveType", "startDate", "endDate"],
   adminUpdateLeaveStatus: ["reqId", "newStatus"],
+  exportLeaveRequestForm: ["reqId", "format"],
+  exportLeaveRequestsZip: ["filterStatus", "format"],
   exportTimesheetData: ["email", "startDate", "endDate", "format"],
   generateTimesheetsZip: ["email", "startDate", "endDate", "format"],
   extractExistingLogsToDailySummaries: [],

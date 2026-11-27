@@ -1080,12 +1080,22 @@ function renderLeaveRequestsTable(requests) {
     if (req.status === "Approved") statusBadge = `<span class="badge badge-success">Approved</span>`;
     if (req.status === "Rejected") statusBadge = `<span class="badge badge-danger">Rejected</span>`;
 
-    const actions = req.status === "Pending" ? `
-      <div style="display: flex; justify-content: flex-end; gap: 0.5rem;">
+    const decisionButtons = req.status === "Pending" ? `
         <button type="button" onclick="handleLeaveAction('${req.reqId}', 'Approved')" class="btn btn-secondary btn-sm">Approve</button>
         <button type="button" onclick="handleLeaveAction('${req.reqId}', 'Rejected')" class="btn btn-outline-danger btn-sm">Reject</button>
-      </div>
     ` : `<span class="text-muted" style="font-size: 0.8rem; font-style: italic;">Resolved</span>`;
+
+    const actions = `
+      <div style="display: flex; justify-content: flex-end; align-items: center; gap: 0.35rem; flex-wrap: wrap;">
+        <button type="button" onclick="downloadLeaveForm('${req.reqId}', 'pdf')" class="btn btn-outline btn-sm" title="Download official MolāDira leave form in PDF" style="padding: 0.25rem 0.5rem; font-size: 0.72rem;">
+          📄 PDF
+        </button>
+        <button type="button" onclick="downloadLeaveForm('${req.reqId}', 'word')" class="btn btn-outline btn-sm" title="Download official MolāDira leave form in Word" style="padding: 0.25rem 0.5rem; font-size: 0.72rem; color: #185abd; border-color: #cbd5e1;">
+          📝 Word
+        </button>
+        ${decisionButtons}
+      </div>
+    `;
 
     return `
       <tr>
@@ -1125,6 +1135,72 @@ function handleLeaveAction(reqId, newStatus) {
       }
     })
     .adminUpdateLeaveStatus(reqId, newStatus);
+}
+
+/**
+ * Downloads a pre-filled or blank MolāDira Skills Leave Request Form in PDF or Word (.doc).
+ */
+function downloadLeaveForm(reqId, format = 'pdf') {
+  const isWord = (format === 'word' || format === 'doc');
+  const label = isWord ? "Word" : "PDF";
+  const targetLabel = reqId === 'BLANK' ? "Blank Leave Form Template" : `Leave Form (${reqId})`;
+
+  showLoader(true, `Generating ${label} ${targetLabel}...`);
+
+  google.script.run
+    .withFailureHandler(function(err) {
+      showLoader(false);
+      alert(`Download Error: ` + (err.message || err));
+    })
+    .withSuccessHandler(function(res) {
+      showLoader(false);
+      if (res && res.status === "success") {
+        triggerNativeDownload(res.base64, res.mimeType, res.filename);
+      } else {
+        alert("Export Error: " + ((res && res.message) || "Failed to generate leave form."));
+      }
+    })
+    .exportLeaveRequestForm(reqId, format);
+}
+
+/**
+ * Bulk exports leave application forms in batch as a ZIP archive (PDF or Word).
+ */
+function downloadAllLeaveFormsZip(format = 'pdf') {
+  const isWord = (format === 'word' || format === 'doc');
+  const btnId = isWord ? "btnZipLeaveWord" : "btnZipLeavePdf";
+  const spinnerId = isWord ? "spinnerLeaveWordZip" : "spinnerLeavePdfZip";
+  const textId = isWord ? "textLeaveWordZip" : "textLeavePdfZip";
+  const label = isWord ? "Word" : "PDF";
+
+  const btn = document.getElementById(btnId);
+  const spinner = document.getElementById(spinnerId);
+  const text = document.getElementById(textId);
+
+  if (btn) btn.classList.add("disabled");
+  if (spinner) spinner.classList.remove("hidden");
+  if (text) text.innerText = `Compiling ${label}...`;
+
+  function resetBtn() {
+    if (btn) btn.classList.remove("disabled");
+    if (spinner) spinner.classList.add("hidden");
+    if (text) text.innerText = isWord ? "📦 All Forms (Word .zip)" : "📦 All Forms (PDF .zip)";
+  }
+
+  google.script.run
+    .withFailureHandler(function(err) {
+      resetBtn();
+      alert(`ZIP Error: ` + (err.message || err));
+    })
+    .withSuccessHandler(function(res) {
+      resetBtn();
+      if (res && res.status === "success") {
+        triggerNativeDownload(res.base64, res.mimeType, res.filename);
+      } else {
+        alert("Export Error: " + ((res && res.message) || "Failed to compile archive."));
+      }
+    })
+    .exportLeaveRequestsZip("ALL", format);
 }
 
 /**
